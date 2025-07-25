@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Signalement Odeur</title>
+</head>
+<body>
+  <h2>📢 Signaler une odeur</h2>
+
+  <form id="form">
+    <label>Intensité (1–10) :</label><br>
+    <input type="number" id="intensite" name="intensite" min="1" max="10" required><br><br>
+
+    <label>Type d'odeur :</label><br>
+    <select id="type" required>
+      <option value="charogne">Charogne</option>
+      <option value="acide">Acide</option>
+      <option value="brûlé">Brûlé</option>
+      <option value="plastique">Plastique</option>
+      <option value="chimique">Chimique</option>
+    </select><br><br>
+
+    <label>Commentaire :</label><br>
+    <textarea id="commentaire" rows="3"></textarea><br><br>
+
+    <input type="hidden" id="latitude">
+    <input type="hidden" id="longitude">
+
+    <button type="submit">Envoyer</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script>
+    const form = document.getElementById("form");
+    const status = document.getElementById("status");
+
+    // Récupération géolocalisation automatique
+    navigator.geolocation.getCurrentPosition(function(position) {
+      document.getElementById("latitude").value = position.coords.latitude;
+      document.getElementById("longitude").value = position.coords.longitude;
+    });
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const data = {
+        intensite: document.getElementById("intensite").value,
+        type: document.getElementById("type").value,
+        commentaire: document.getElementById("commentaire").value,
+        latitude: document.getElementById("latitude").value,
+        longitude: document.getElementById("longitude").value
+      };
+
+      fetch("https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec", {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      .then(response => status.innerText = "✅ Signalement envoyé ! Merci.")
+      .catch(error => status.innerText = "❌ Erreur lors de l’envoi.");
+    });
+  </script>
+</body>
+</html>
