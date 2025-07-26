@@ -9,70 +9,37 @@
   <style>
     html, body, #map { height: 100%; margin: 0; font-family: sans-serif; }
     #new-signal {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: white;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 14px;
-      z-index: 1001;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      text-decoration: none;
-      color: black;
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      background: white; padding: 6px 12px; border-radius: 8px;
+      font-weight: bold; font-size: 14px; z-index: 1001;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2); text-decoration: none; color: black;
     }
     #controls {
       max-width: 92vw;
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: white;
-      padding: 6px 10px;
-      border-radius: 10px;
-      font-size: 13px;
-      z-index: 1000;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: white; padding: 6px 10px; border-radius: 10px;
+      font-size: 13px; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
     }
-    label, select, input[type="checkbox"], input[type="range"], span {
-      font-size: 13px;
-    }
-    input[type="range"] {
-      width: 140px;
-      transition: opacity 0.3s ease;
-    }
-    input[type="range"].disabled {
-      opacity: 0.3;
-      pointer-events: none;
-    }
-    .datepicker {
-      display: none;
-    }
+    label, select, input[type="checkbox"], input[type="range"], span { font-size: 13px; }
+    input[type="range"] { width: 140px; transition: opacity 0.3s ease; }
+    input[type="range"].disabled { opacity: 0.3; pointer-events: none; }
+    .hidden { display: none !important; }
+    /* Assure que le calendrier passe AU-DESSUS sur mobile */
+    .flatpickr-calendar { z-index: 3000 !important; }
     @media (max-width: 600px) {
-      #controls {
-        flex-wrap: wrap;
-        overflow-x: auto;
-        justify-content: flex-start;
-      }
-      input[type="range"] {
-        width: 100px;
-      }
+      #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
+      input[type="range"] { width: 100px; }
     }
   </style>
 </head>
 <body>
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
+
 <div id="controls">
-  <div style="display: flex; align-items: center;">
-    <span style="margin-right: 4px;">📅</span>
+  <div style="display:flex;align-items:center;">
+    <span style="margin-right:4px;">📅</span>
     <select id="preset">
       <option value="today">Aujourd’hui</option>
       <option value="yesterday">Hier</option>
@@ -82,11 +49,14 @@
       <option value="single">Choisir une date</option>
     </select>
   </div>
-  <input id="customRange" class="datepicker" placeholder="Date début - fin" />
-  <input id="singleDate" class="datepicker" placeholder="Choisir une date" />
+
+  <input id="customRange" type="text" class="" placeholder="Date début - fin" readonly />
+  <input id="singleDate" type="text" class="" placeholder="Choisir une date" readonly />
+
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
-  <div style="display: flex; align-items: center; gap: 6px;">
-    <span style="margin-right: 4px;">⏱️</span>
+
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span style="margin-right:4px;">⏱️</span>
     <input type="range" id="slider" min="0" max="0" value="0" />
   </div>
   <span id="sliderLabel">00:00</span>
@@ -96,20 +66,29 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 <script>
+  // === MAP INIT ===
   const map = L.map('map').setView([44.214, 0.606], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '&copy; OpenStreetMap contributors'
+    maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const usineIcon = L.divIcon({ html: '<div style="font-size: 48px;">🏭</div>', iconSize: [48, 48], className: 'usine-marker' });
+  // Usine ATEMAX
+  const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
   L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
 
-  const getColor = i => ["#FADADD", "#F5B7B1", "#EC7063", "#E74C3C", "#CB4335", "#943126", "#78281F", "#641E16", "#512E2E", "#2E0E0E"][Math.min(9, Math.max(0, i-1))];
+  // === COLOR SCALE ===
+  const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E","#2E0E0E"][Math.min(9, Math.max(0, i-1))];
 
+  // === GLOBAL STATE ===
   let allData = [], grouped = [], labels = [];
-  const slider = document.getElementById("slider"), label = document.getElementById("sliderLabel"), modeDynamic = document.getElementById("modeDynamic");
+  const slider = document.getElementById("slider");
+  const labelTxt = document.getElementById("sliderLabel");
+  const modeDynamic = document.getElementById("modeDynamic");
+  const preset = document.getElementById("preset");
+  const customInput = document.getElementById("customRange");
+  const singleInput = document.getElementById("singleDate");
 
+  // === MAP UPDATE ===
   const updateMap = (points) => {
     if (window.layer) map.removeLayer(window.layer);
     window.layer = L.layerGroup(points.map(p =>
@@ -118,101 +97,126 @@
         fillColor: getColor(p.intensite),
         fillOpacity: 0.6,
         radius: 60
-      }).bindPopup(`<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.date}`)
+      }).bindPopup(
+        `<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.date}`
+      )
     )).addTo(map);
   };
 
+  // === GROUPING ===
   const groupBy = (data, interval) => {
-    const grouped = {};
+    const g = {};
     data.forEach(row => {
-      const date = new Date(row.date);
-      let key = "";
+      const d = new Date(row.date);
       if (interval === '10min') {
-        date.setSeconds(0,0);
-        date.setMinutes(Math.floor(date.getMinutes()/10)*10);
-        key = date.toISOString();
+        d.setSeconds(0,0); d.setMinutes(Math.floor(d.getMinutes()/10)*10);
       } else if (interval === 'hour') {
-        date.setMinutes(0,0,0);
-        key = date.toISOString();
+        d.setMinutes(0,0,0);
       } else if (interval === 'day') {
-        date.setHours(0,0,0,0);
-        key = date.toISOString();
+        d.setHours(0,0,0,0);
       }
-      grouped[key] = grouped[key] || [];
-      grouped[key].push(row);
+      const key = d.toISOString();
+      (g[key] ||= []).push(row);
     });
-    const keys = Object.keys(grouped).sort();
+    const keys = Object.keys(g).sort();
     labels = keys.map(k => new Date(k).toLocaleString("fr-FR"));
-    return keys.map(k => grouped[k]);
+    return keys.map(k => g[k]);
   };
 
+  // === REFRESH ===
   const refresh = (mode) => {
     let gtype = 'day';
     const today = new Date();
+
     if (mode === 'today' || mode === 'yesterday' || mode === 'single') gtype = '10min';
     else if (mode === 'last7') gtype = 'hour';
     else if (mode === 'last30') gtype = 'day';
     else if (mode === 'custom') {
-      const input = document.getElementById("customRange")._flatpickr.selectedDates;
-      const diff = (input[1]-input[0])/86400000;
+      const sel = fpRange.selectedDates;
+      const diff = (sel[1] - sel[0]) / 86400000;
       gtype = diff <= 1 ? '10min' : diff <= 7 ? 'hour' : 'day';
     }
-    grouped = groupBy(allData.filter(d => {
+
+    const filtered = allData.filter(d => {
       const date = new Date(d.date);
       if (mode === 'today') return date.toDateString() === today.toDateString();
       if (mode === 'yesterday') {
-        const y = new Date(today); y.setDate(y.getDate()-1);
+        const y = new Date(today); y.setDate(y.getDate() - 1);
         return date.toDateString() === y.toDateString();
       }
-      if (mode === 'last7') { const d = new Date(today); d.setDate(d.getDate()-7); return date >= d; }
-      if (mode === 'last30') { const d = new Date(today); d.setDate(d.getDate()-30); return date >= d; }
+      if (mode === 'last7') { const d7 = new Date(today); d7.setDate(d7.getDate() - 7); return date >= d7; }
+      if (mode === 'last30') { const d30 = new Date(today); d30.setDate(d30.getDate() - 30); return date >= d30; }
       if (mode === 'single') {
-        const sel = document.getElementById("singleDate")._flatpickr.selectedDates[0];
-        return date.toDateString() === sel?.toDateString();
+        const sel = fpSingle.selectedDates[0];
+        return sel && date.toDateString() === sel.toDateString();
       }
       if (mode === 'custom') {
-        const [d1,d2] = document.getElementById("customRange")._flatpickr.selectedDates;
+        const [d1,d2] = fpRange.selectedDates;
         return d1 && d2 && date >= d1 && date <= d2;
       }
       return true;
-    }), gtype);
+    });
 
-    slider.max = grouped.length-1;
-    const lastIndex = grouped.length - 1;
+    grouped = groupBy(filtered, gtype);
+    slider.max = grouped.length - 1;
+
+    const lastIndex = Math.max(0, grouped.length - 1);
     slider.value = lastIndex;
-    updateMap(grouped[lastIndex]);
-    label.innerText = labels[lastIndex];
+    updateMap(grouped[lastIndex] || []);
+    labelTxt.innerText = labels[lastIndex] || "";
   };
 
+  // === MODE DYNAMIQUE ===
   modeDynamic.onchange = () => {
     const enabled = modeDynamic.checked;
     slider.disabled = !enabled;
     slider.classList.toggle("disabled", !enabled);
     updateMap(enabled ? grouped[slider.value] : grouped.flat());
-    label.innerText = enabled ? labels[slider.value] : "";
-  };
-  slider.oninput = () => {
-    updateMap(grouped[slider.value]);
-    label.innerText = labels[slider.value];
+    labelTxt.innerText = enabled ? labels[slider.value] : "";
   };
 
-  document.getElementById("preset").onchange = e => {
+  slider.oninput = () => {
+    updateMap(grouped[slider.value]);
+    labelTxt.innerText = labels[slider.value];
+  };
+
+  // === FLATPICKR INIT ===
+  flatpickr.setDefaults({ locale: "fr" });
+
+  const fpRange = flatpickr("#customRange", {
+    mode: "range",
+    dateFormat: "d/m/Y",
+    onClose: () => refresh("custom")
+  });
+
+  const fpSingle = flatpickr("#singleDate", {
+    dateFormat: "d/m/Y",
+    onClose: () => refresh("single")
+  });
+
+  // Cacher par défaut
+  customInput.classList.add("hidden");
+  singleInput.classList.add("hidden");
+
+  // === PRESET CHANGE ===
+  preset.onchange = (e) => {
     const val = e.target.value;
-    document.getElementById("customRange").style.display = (val === "custom") ? "inline-block" : "none";
-    document.getElementById("singleDate").style.display = (val === "single") ? "inline-block" : "none";
+
+    // toggle visibility
+    customInput.classList.toggle("hidden", val !== "custom");
+    singleInput.classList.toggle("hidden", val !== "single");
+
+    // ouvrir automatiquement (mobile friendly)
     if (val === "custom") {
-      document.getElementById("customRange")._flatpickr.open();
+      setTimeout(() => fpRange.open(), 0);
     } else if (val === "single") {
-      document.getElementById("singleDate")._flatpickr.open();
+      setTimeout(() => fpSingle.open(), 0);
     } else {
       refresh(val);
     }
   };
 
-  flatpickr.setDefaults({ locale: "fr" });
-  flatpickr("#customRange", { mode: "range", dateFormat: "d/m/Y", onClose: () => refresh("custom") });
-  flatpickr("#singleDate", { dateFormat: "d/m/Y", onClose: () => refresh("single") });
-
+  // === LOAD DATA ===
   fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201")
     .then(res => res.json())
     .then(rows => {
