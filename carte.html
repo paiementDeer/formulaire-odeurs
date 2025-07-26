@@ -198,7 +198,6 @@
 
   document.getElementById("preset").onchange = e => {
     const val = e.target.value;
-    if (val === "custom" || val === "single") return; // les pickers déclenchent le refresh
     refresh(val);
   };
 
