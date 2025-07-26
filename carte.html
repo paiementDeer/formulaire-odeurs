@@ -78,13 +78,19 @@
         justify-content: flex-start;
       }
     }
+    
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     </style>
 </head>
 <body>
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
 <div id="controls">
-  <div class="select-container"><span style="margin-right: 4px;">📅</span><select id="preset">
+  <div class="select-container"><span style="margin-right: 4px;">📅</span></div><select id="preset">
     <option value="today">Aujourd’hui</option>
     <option value="yesterday">Hier</option>
     <option value="last7">7 derniers jours</option>
@@ -95,9 +101,8 @@
   <input id="customRange" class="datepicker" placeholder="Date début - fin" />
   <input id="singleDate" class="datepicker" placeholder="Choisir une date" />
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
-  <label for="slider">⏱️</label>
-  <input type="range" id="slider" min="0" max="5" step="1" value="0" />
-  <span id="sliderLabel">00:00</span>
+  <div class="slider-wrap"><span style="margin-right: 4px;">⏱️</span></div><input type="range" id="slider" min="0" max="5" step="1" value="0" />
+  <span id="sliderLabel">00:00</span></div>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
