@@ -41,13 +41,13 @@
       text-shadow:0 1px 2px rgba(255,255,255,.8);
     }
     .wind-icon svg{
-      width:48px; height:48px;
-      filter: drop-shadow(0 2px 3px rgba(0,0,0,.25));
+      width:60px; height:60px;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,.35));
       transition: transform .2s ease;
     }
     .wind-speed{
-      background:rgba(255,255,255,.85);
-      padding:3px 8px;
+      background:rgba(255,255,255,.9);
+      padding:4px 9px;
       border-radius:6px;
       font-weight:bold;
       line-height:1;
@@ -95,6 +95,13 @@
     return new Date(+y, +m - 1, +d, +(hh||0), +(mm||0), +(ss||0));
   }
 
+  // Quick offset (meters → lat/lon delta)
+  function offsetLatLng(lat, lon, dxMeters, dyMeters){
+    const dLat = dyMeters / 111320; // ~m per deg
+    const dLon = dxMeters / (111320 * Math.cos(lat * Math.PI/180));
+    return [lat + dLat, lon + dLon];
+  }
+
   // --- Map ---
   const map = L.map('map').setView([44.214, 0.606], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -105,24 +112,27 @@
   const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
   L.marker(USINE, { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
 
+  // Position de la flèche : 200 m à l'est
+  const WIND_POS = offsetLatLng(USINE[0], USINE[1], 200, 0);
+
   const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E"][Math.min(9, Math.max(0, i-1))];
 
   // --- Wind arrow ---
   let windMarker = null;
 
   function makeWindIcon(dirDeg, speedKmh) {
-    // dirDeg = direction D'OÙ vient le vent ; pour montrer OÙ il va : dirDeg = (dirDeg + 180) % 360;
+    // dirDeg = direction d'où vient le vent ; pour montrer où il va : dirDeg = (dirDeg + 180) % 360;
     const arrowRotation = dirDeg;
     const svg = `
       <svg viewBox="0 0 100 100" style="transform: rotate(${arrowRotation}deg);">
-        <polygon points="50,8 62,55 50,45 38,55" fill="#1e3a8a"/>
+        <path d="M50 6 L66 58 L50 46 L34 58 Z" fill="#e11d48" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/>
       </svg>`;
     const html = `
       <div class="wind-icon">
         ${svg}
         <span class="wind-speed">${speedKmh} km/h</span>
       </div>`;
-    return L.divIcon({ html, className: '', iconSize: [50,50], iconAnchor: [25,25] });
+    return L.divIcon({ html, className: '', iconSize: [60,60], iconAnchor: [30,30] });
   }
 
   async function fetchWindAndUpdate() {
@@ -141,7 +151,7 @@
 
   function updateWindMarker(dir, speed) {
     if (!windMarker) {
-      windMarker = L.marker(USINE, { icon: makeWindIcon(dir, speed), interactive: false }).addTo(map);
+      windMarker = L.marker(WIND_POS, { icon: makeWindIcon(dir, speed), interactive: false, zIndexOffset: 1000 }).addTo(map);
     } else {
       windMarker.setIcon(makeWindIcon(dir, speed));
     }
