@@ -196,7 +196,12 @@
     label.innerText = labels[slider.value];
   };
 
-  document.getElementById("preset").onchange = e => refresh(e.target.value);
+  document.getElementById("preset").onchange = e => {
+    const val = e.target.value;
+    if (val === "custom" || val === "single") return; // les pickers déclenchent le refresh
+    refresh(val);
+  };
+
   flatpickr.setDefaults({ locale: "fr" });
   flatpickr("#customRange", { mode: "range", dateFormat: "d/m/Y", onClose: () => refresh("custom") });
   flatpickr("#singleDate", { dateFormat: "d/m/Y", onClose: () => refresh("single") });
