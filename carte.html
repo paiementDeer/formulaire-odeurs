@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Carte - Mode simple mobile</title>
+  <title>Carte - Usine ATEMAX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -57,24 +58,12 @@
     }
     @media (max-width: 600px) {
       #controls {
-      max-width: 92vw;
-        flex-wrap: wrap;
-      }
-      input[type="range"] {
-        width: 100px;
-      }
-    }
-
-    .select-container {
-      display: flex;
-      align-items: center;
-      flex-shrink: 1;
-    }
-    @media (max-width: 600px) {
-      #controls {
         flex-wrap: wrap;
         overflow-x: auto;
         justify-content: flex-start;
+      }
+      input[type="range"] {
+        width: 100px;
       }
     }
   </style>
@@ -83,14 +72,17 @@
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
 <div id="controls">
-  <div class="select-container"><span style="margin-right: 4px;">📅</span><select id="preset">
-    <option value="today">Aujourd’hui</option>
-    <option value="yesterday">Hier</option>
-    <option value="last7">7 derniers jours</option>
-    <option value="last30">30 derniers jours</option>
-    <option value="custom">Période personnalisée</option>
-    <option value="single">Choisir une date</option>
-  </select></div>
+  <div style="display: flex; align-items: center;">
+    <span style="margin-right: 4px;">📅</span>
+    <select id="preset">
+      <option value="today">Aujourd’hui</option>
+      <option value="yesterday">Hier</option>
+      <option value="last7">7 derniers jours</option>
+      <option value="last30">30 derniers jours</option>
+      <option value="custom">Période personnalisée</option>
+      <option value="single">Choisir une date</option>
+    </select>
+  </div>
   <input id="customRange" class="datepicker" placeholder="Date début - fin" />
   <input id="singleDate" class="datepicker" placeholder="Choisir une date" />
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
@@ -110,6 +102,17 @@
     maxZoom: 18,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
+
+  // 🏭 Icône ATEMAX personnalisée
+  const usineIcon = L.divIcon({
+    html: '<div style="font-size: 48px;">🏭</div>',
+    iconSize: [48, 48],
+    className: 'usine-marker'
+  });
+
+  L.marker([44.212805, 0.597916], { icon: usineIcon })
+    .addTo(map)
+    .bindPopup("Usine d'incinération ATEMAX");
 
   const getColor = i => ["#FADADD", "#F5B7B1", "#EC7063", "#E74C3C", "#CB4335", "#943126", "#78281F"][Math.min(6, Math.max(0, i - 1))];
   const generatePoints = n => Array.from({ length: n }, (_, i) => [{ lat: 44.21 + i * 0.001, lon: 0.606 + i * 0.001, intensite: 1 + (i % 7) }]);
