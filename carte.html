@@ -37,13 +37,22 @@
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    const couleurs = {
-      "charogne": "#7B241C",
-      "acide": "#F1C40F",
-      "brûlé": "#E67E22",
-      "plastique": "#9B59B6",
-      "chimique": "#3498DB"
-    };
+    // Fonction pour convertir l’intensité (1-10) en dégradé rose → bordeaux
+    function couleurDepuisIntensite(intensite) {
+      const couleurs = [
+        "#FADADD", // 1
+        "#F5B7B1", // 2
+        "#EC7063", // 3
+        "#E74C3C", // 4
+        "#CB4335", // 5
+        "#B03A2E", // 6
+        "#943126", // 7
+        "#78281F", // 8
+        "#641E16", // 9
+        "#512E2E"  // 10 (bordeaux foncé)
+      ];
+      return couleurs[Math.min(9, Math.max(0, intensite - 1))];
+    }
 
     fetch('https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201')
       .then(response => response.json())
@@ -55,14 +64,14 @@
           const type = item["Type d’odeur"];
           const commentaire = item["Commentaire"];
           const date = item["Date/heure"];
-          const couleur = couleurs[type] || "#FF0000";
+          const couleur = couleurDepuisIntensite(intensite);
 
           if (!isNaN(lat) && !isNaN(lng)) {
             L.circle([lat, lng], {
               color: couleur,
               fillColor: couleur,
-              fillOpacity: 0.5,
-              radius: intensite * 20
+              fillOpacity: 0.6,
+              radius: 60 // taille fixe (équivalente à intensité 3)
             }).addTo(map)
               .bindPopup(`<strong>Odeur : ${type}</strong><br>
                           Intensité : ${intensite}/10<br>
