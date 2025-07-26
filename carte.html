@@ -157,7 +157,6 @@
       const diff = (input[1]-input[0])/86400000;
       gtype = diff <= 1 ? '10min' : diff <= 7 ? 'hour' : 'day';
     }
-
     grouped = groupBy(allData.filter(d => {
       const date = new Date(d.date);
       if (mode === 'today') return date.toDateString() === today.toDateString();
@@ -192,7 +191,6 @@
     updateMap(enabled ? grouped[slider.value] : grouped.flat());
     label.innerText = enabled ? labels[slider.value] : "";
   };
-
   slider.oninput = () => {
     updateMap(grouped[slider.value]);
     label.innerText = labels[slider.value];
@@ -200,12 +198,14 @@
 
   document.getElementById("preset").onchange = e => {
     const val = e.target.value;
-
-    // 👉 Affiche les bons champs calendrier
     document.getElementById("customRange").style.display = (val === "custom") ? "inline-block" : "none";
     document.getElementById("singleDate").style.display = (val === "single") ? "inline-block" : "none";
 
-    if (val !== "custom" && val !== "single") {
+    if (val === "custom") {
+      document.getElementById("customRange")._flatpickr.open();
+    } else if (val === "single") {
+      document.getElementById("singleDate")._flatpickr.open();
+    } else {
       refresh(val);
     }
   };
