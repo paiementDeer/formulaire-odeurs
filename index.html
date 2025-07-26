@@ -4,62 +4,86 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Signalement Odeur</title>
+
+  <!-- Pico.css (design propre sans config) -->
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.5.10/css/pico.min.css">
+
+  <!-- noUiSlider -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
+  <style>
+    #intensiteSlider { margin: 1rem 0 0.5rem; }
+    .noUi-tooltip { font-size: 0.9rem; }
+  </style>
 </head>
-<body>
+<body class="container">
+
   <h2>📢 Signaler une odeur</h2>
 
   <form id="form">
-    <label>Intensité (1–10) :</label><br>
-    <input type="number" id="intensite" name="intensite" min="1" max="10" required><br><br>
+    <label for="intensiteSlider">Intensité (1–10)</label>
+    <div id="intensiteSlider"></div>
+    <input type="hidden" id="intensite" name="intensite" required>
 
-    <label>Type d'odeur :</label><br>
-    <select id="type" required>
+    <label for="type">Type d'odeur</label>
+    <select id="type" name="type" required>
       <option value="charogne">Charogne</option>
       <option value="acide">Acide</option>
       <option value="brûlé">Brûlé</option>
       <option value="plastique">Plastique</option>
       <option value="chimique">Chimique</option>
-    </select><br><br>
+    </select>
 
-    <label>Commentaire :</label><br>
-    <textarea id="commentaire" rows="3"></textarea><br><br>
+    <label for="commentaire">Commentaire</label>
+    <textarea id="commentaire" name="commentaire" rows="3" placeholder="Décris l'odeur, la météo, etc."></textarea>
 
-    <input type="hidden" id="latitude">
-    <input type="hidden" id="longitude">
+    <input type="hidden" id="latitude" name="latitude">
+    <input type="hidden" id="longitude" name="longitude">
 
     <button type="submit">Envoyer</button>
   </form>
 
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
   <script>
-    const form = document.getElementById("form");
-
-    // Géolocalisation auto
-    navigator.geolocation.getCurrentPosition(function(position) {
-      document.getElementById("latitude").value = position.coords.latitude;
-      document.getElementById("longitude").value = position.coords.longitude;
+    // Slider intensité
+    const slider = document.getElementById('intensiteSlider');
+    noUiSlider.create(slider, {
+      start: 5,
+      step: 1,
+      range: { min: 1, max: 10 },
+      tooltips: true,
+      format: {
+        to: v => Math.round(v),
+        from: v => Number(v)
+      }
     });
+    const intensiteInput = document.getElementById('intensite');
+    slider.noUiSlider.on('update', (vals) => intensiteInput.value = vals[0]);
 
-    form.addEventListener("submit", function(e) {
+    // Géolocalisation auto (avec fallback silencieux)
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          latitude.value  = pos.coords.latitude;
+          longitude.value = pos.coords.longitude;
+        },
+        () => {} // ignore error
+      );
+    }
+
+    const form = document.getElementById('form');
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = {
-        intensite: document.getElementById("intensite").value,
-        type: document.getElementById("type").value,
-        commentaire: document.getElementById("commentaire").value,
-        latitude: document.getElementById("latitude").value,
-        longitude: document.getElementById("longitude").value
-      };
+      const data = Object.fromEntries(new FormData(form).entries());
 
-      fetch("https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec", {
-        method: "POST",
-        body: JSON.stringify(data)
-      })
-      .then(() => {
-        // ✅ Redirection automatique vers la carte
-        window.location.href = "carte.html";
-      })
-      .catch(() => {
-        alert("❌ Erreur lors de l’envoi du signalement.");
-      });
+      try {
+        await fetch(
+          'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec',
+          { method: 'POST', body: JSON.stringify(data) }
+        );
+        window.location.href = 'carte.html';
+      } catch (err) {
+        alert('❌ Erreur lors de l’envoi du signalement.');
+      }
     });
   </script>
 </body>
