@@ -18,35 +18,17 @@
       height: 18px;
       border-radius: 9999px;
       background: linear-gradient(90deg,
-        rgba(173, 184, 125, 0.25) 0%,
-        rgba(130, 143, 73, 0.45) 40%,
-        rgba(92, 103, 41, 0.65) 70%,
-        rgba(55, 63, 20, 0.85) 100%
+        rgba(173,184,125,0.25) 0%,
+        rgba(130,143,73,0.45) 40%,
+        rgba(92,103,41,0.65) 70%,
+        rgba(55,63,20,0.85) 100%
       );
       box-shadow:
         inset 0 0 6px rgba(255,255,255,0.4),
         0 2px 6px rgba(0,0,0,0.25);
       backdrop-filter: blur(3px);
     }
-    /* On laisse la zone connect transparente, le dégradé est sur la base */
-    #intensiteSlider .noUi-connect{
-      background: transparent;
-    }
-    /* Poignée = mouche */
-    #intensiteSlider .noUi-handle{
-      width: 44px; height: 44px;
-      border: none; box-shadow: none;
-      background: transparent;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 30px; line-height: 1;
-      cursor: grab;
-      transform: translateY(-13px); /* centre sur la piste */
-    }
-    #intensiteSlider .noUi-handle:before,
-    #intensiteSlider .noUi-handle:after{
-      display:none;
-    }
-    /* Tooltip du slider */
+    #intensiteSlider .noUi-connect{ background: transparent; }
     .noUi-tooltip{
       font-size: .85rem;
       background: rgba(0,0,0,0.75);
@@ -94,6 +76,15 @@
             <option value="brûlé">Brûlé</option>
             <option value="plastique">Plastique</option>
             <option value="chimique">Chimique</option>
+            <option value="croquettes">Croquettes</option>
+            <option value="animal_en_decomposition">Animal en décomposition</option>
+            <option value="fumee">Fumée</option>
+            <option value="vomi">Vomi</option>
+            <option value="egout">Égout</option>
+            <option value="oeuf_pourri">Œuf pourri</option>
+            <option value="urine">Urine</option>
+            <option value="purin">Purin</option>
+            <option value="gaz">Gaz</option>
           </select>
         </div>
 
@@ -128,19 +119,17 @@
       tooltips: true,
       format: { to: v => Math.round(v), from: v => Number(v) }
     });
-    // Remplacer le handle par une mouche
-    const handle = sliderEl.querySelector('.noUi-handle');
-    handle.textContent = '🪰';
-
     const intensiteInput = document.getElementById('intensite');
     sliderEl.noUiSlider.on('update', vals => intensiteInput.value = vals[0]);
 
-    // Géolocalisation (silencieuse si refusée)
+    // Géolocalisation
+    const latInput = document.getElementById('latitude');
+    const lonInput = document.getElementById('longitude');
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         pos => {
-          latitude.value  = pos.coords.latitude;
-          longitude.value = pos.coords.longitude;
+          latInput.value  = pos.coords.latitude;
+          lonInput.value = pos.coords.longitude;
         },
         () => {}
       );
@@ -151,7 +140,7 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      overlay.classList.remove('hidden');
+      overlay.classList.remove('hidden'); // affiche le loader
 
       const data = Object.fromEntries(new FormData(form).entries());
 
@@ -160,10 +149,8 @@
           'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec',
           { method: 'POST', body: JSON.stringify(data) }
         );
-        // Redirection après envoi
         window.location.href = 'carte.html';
-
-        /* Variante “page merci” rapide :
+        /* Variante “page merci” :
         document.body.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-center bg-slate-100 p-6 text-center">
             <h1 class="text-2xl font-semibold mb-3 text-slate-800">✅ Signalement envoyé</h1>
