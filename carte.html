@@ -69,15 +69,14 @@
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
 <div id="controls">
-  <label for="preset">📅</label>
-  <select id="preset">
+  <div style="display: flex; align-items: center;"><span style="margin-right: 4px;">📅</span><select id="preset">
     <option value="today">Aujourd’hui</option>
     <option value="yesterday">Hier</option>
     <option value="last7">7 derniers jours</option>
     <option value="last30">30 derniers jours</option>
     <option value="custom">Période personnalisée</option>
     <option value="single">Choisir une date</option>
-  </select>
+  </select></div>
   <input id="customRange" class="datepicker" placeholder="Date début - fin" />
   <input id="singleDate" class="datepicker" placeholder="Choisir une date" />
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
