@@ -6,6 +6,7 @@
   <title>Carte - Mode simple mobile</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
     html, body, #map { height: 100%; margin: 0; font-family: sans-serif; }
     #new-signal {
@@ -51,6 +52,9 @@
       opacity: 0.3;
       pointer-events: none;
     }
+    .datepicker {
+      display: none;
+    }
     @media (max-width: 600px) {
       #controls {
         flex-wrap: wrap;
@@ -74,6 +78,8 @@
     <option value="custom">Période personnalisée</option>
     <option value="single">Choisir une date</option>
   </select>
+  <input id="customRange" class="datepicker" placeholder="Date début - fin" />
+  <input id="singleDate" class="datepicker" placeholder="Choisir une date" />
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
   <label for="slider">⏱️</label>
   <input type="range" id="slider" min="0" max="5" step="1" value="0" />
@@ -81,6 +87,8 @@
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 <script>
   const map = L.map('map').setView([44.214, 0.606], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -103,6 +111,12 @@
   const label = document.getElementById("sliderLabel");
   const preset = document.getElementById("preset");
   const modeDynamic = document.getElementById("modeDynamic");
+  const customInput = document.getElementById("customRange");
+  const singleInput = document.getElementById("singleDate");
+
+  flatpickr.setDefaults({ locale: "fr" });
+  flatpickr("#customRange", { mode: "range", dateFormat: "d/m/Y" });
+  flatpickr("#singleDate", { dateFormat: "d/m/Y" });
 
   let currentLayer = null;
   let activeData = dataset["today"];
@@ -145,6 +159,8 @@
 
   preset.onchange = () => {
     const key = preset.value;
+    customInput.style.display = key === "custom" ? "inline-block" : "none";
+    singleInput.style.display = key === "single" ? "inline-block" : "none";
     activeData = dataset[key];
     activeLabels = getLabels(key, activeData.length);
     slider.max = activeData.length - 1;
