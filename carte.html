@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Démo Évolution dynamique</title>
+  <title>Carte - Mode simple mobile</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
@@ -29,46 +29,34 @@
       left: 50%;
       transform: translateX(-50%);
       background: white;
-      padding: 10px 14px;
+      padding: 6px 10px;
       border-radius: 10px;
-      font-size: 14px;
+      font-size: 13px;
       z-index: 1000;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
       align-items: center;
       justify-content: center;
+      gap: 8px;
     }
-    #controls > * {
-      margin: 2px;
+    label, select, input[type="checkbox"], input[type="range"], span {
+      font-size: 13px;
     }
     input[type="range"] {
-      width: 160px;
+      width: 140px;
       transition: opacity 0.3s ease;
     }
     input[type="range"].disabled {
       opacity: 0.3;
       pointer-events: none;
     }
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .checkbox-group label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: bold;
-    }
     @media (max-width: 600px) {
       #controls {
-        flex-direction: column;
-        padding: 8px;
+        flex-wrap: wrap;
       }
       input[type="range"] {
-        width: 100%;
+        width: 100px;
       }
     }
   </style>
@@ -77,7 +65,7 @@
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
 <div id="controls">
-  <label for="preset">📅 Période :</label>
+  <label for="preset">📅</label>
   <select id="preset">
     <option value="today">Aujourd’hui</option>
     <option value="yesterday">Hier</option>
@@ -86,10 +74,7 @@
     <option value="custom">Période personnalisée</option>
     <option value="single">Choisir une date</option>
   </select>
-  <div class="checkbox-group">
-    <label><input type="checkbox" id="modeTimeline" checked /> Évolution <strong>dynamique</strong></label>
-    <label><input type="checkbox" id="modeSynthese" /> Synthèse période</label>
-  </div>
+  <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
   <label for="slider">⏱️</label>
   <input type="range" id="slider" min="0" max="5" step="1" value="0" />
   <span id="sliderLabel">00:00</span>
@@ -117,8 +102,7 @@
   const slider = document.getElementById("slider");
   const label = document.getElementById("sliderLabel");
   const preset = document.getElementById("preset");
-  const modeTimeline = document.getElementById("modeTimeline");
-  const modeSynthese = document.getElementById("modeSynthese");
+  const modeDynamic = document.getElementById("modeDynamic");
 
   let currentLayer = null;
   let activeData = dataset["today"];
@@ -139,27 +123,25 @@
   };
 
   const getLabels = (key, len) => {
-    if (key === "today" || key === "yesterday" || key === "single") return Array.from({ length: len }, (_, i) => `00:${(i * 10).toString().padStart(2, '0')}`);
-    if (key === "last7") return Array.from({ length: len }, (_, i) => `${i}h`);
+    if (["today", "yesterday", "single"].includes(key))
+      return Array.from({ length: len }, (_, i) => `00:${(i * 10).toString().padStart(2, '0')}`);
+    if (key === "last7")
+      return Array.from({ length: len }, (_, i) => `${i}h`);
     return Array.from({ length: len }, (_, i) => `Jour ${i + 1}`);
   };
 
-  function syncMode(timelineChecked) {
-    modeTimeline.checked = timelineChecked;
-    modeSynthese.checked = !timelineChecked;
-    slider.classList.toggle("disabled", !timelineChecked);
-    slider.disabled = !timelineChecked;
-    if (timelineChecked) {
+  const refreshMode = () => {
+    const isActive = modeDynamic.checked;
+    slider.disabled = !isActive;
+    slider.classList.toggle("disabled", !isActive);
+    if (isActive) {
       updateMap(activeData[slider.value]);
       label.innerText = activeLabels[slider.value];
     } else {
       updateMap(activeData.flat());
-      label.innerText = "Vue globale";
+      label.innerText = " ";
     }
-  }
-
-  modeTimeline.onchange = () => syncMode(true);
-  modeSynthese.onchange = () => syncMode(false);
+  };
 
   preset.onchange = () => {
     const key = preset.value;
@@ -167,19 +149,20 @@
     activeLabels = getLabels(key, activeData.length);
     slider.max = activeData.length - 1;
     slider.value = 0;
-    syncMode(modeTimeline.checked);
+    refreshMode();
   };
 
+  modeDynamic.onchange = refreshMode;
+
   slider.oninput = () => {
-    if (modeTimeline.checked) {
-      label.innerText = activeLabels[slider.value];
-      updateMap(activeData[slider.value]);
-    }
+    if (!modeDynamic.checked) return;
+    label.innerText = activeLabels[slider.value];
+    updateMap(activeData[slider.value]);
   };
 
   // Init
   activeLabels = getLabels("today", dataset.today.length);
-  syncMode(true);
+  refreshMode();
 </script>
 </body>
 </html>
