@@ -31,29 +31,29 @@
       input[type="range"] { width: 100px; }
     }
 
-    /* --------- Flèche de vent + vitesse (5x plus grosse, noire) --------- */
+    /* --------- Flèche de vent + vitesse (2x plus grosse que l'originale) --------- */
     .wind-icon{
       display:flex;
       align-items:center;
-      gap:12px;
-      font-size:16px;
+      gap:6px;
+      font-size:11px;
       color:#000;
       font-weight:bold;
       text-shadow:0 1px 2px rgba(255,255,255,.9);
       pointer-events:none;
     }
     .wind-icon svg{
-      width:400px; height:400px; /* 5x la taille précédente (80px) */
-      filter: drop-shadow(0 6px 8px rgba(0,0,0,.45));
+      width:120px; height:120px; /* 2x la taille ~60px d'origine */
+      filter: drop-shadow(0 3px 4px rgba(0,0,0,.35));
       transition: transform .2s ease;
     }
     .wind-speed{
-      background:rgba(255,255,255,.95);
-      padding:6px 14px;
-      border-radius:8px;
+      background:rgba(255,255,255,.85);
+      padding:3px 8px;
+      border-radius:6px;
       line-height:1;
-      box-shadow:0 2px 3px rgba(0,0,0,.25);
-      font-size:18px;
+      box-shadow:0 1px 2px rgba(0,0,0,.25);
+      font-weight:bold;
     }
   </style>
 </head>
@@ -128,15 +128,14 @@
     const arrowRotation = dirDeg;
     const svg = `
       <svg viewBox="0 0 100 100" style="transform: rotate(${arrowRotation}deg);">
-        <path d="M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z" fill="#000000" stroke="#ffffff" stroke-width="6" stroke-linejoin="round" />
+        <path d="M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z" fill="#000000" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" />
       </svg>`;
     const html = `
       <div class="wind-icon">
         ${svg}
         <span class="wind-speed">${speedKmh} km/h</span>
       </div>`;
-    // iconSize & anchor en cohérence avec svg 400x400
-    return L.divIcon({ html, className: '', iconSize: [400,400], iconAnchor: [200,200] });
+    return L.divIcon({ html, className: '', iconSize: [120,120], iconAnchor: [60,60] });
   }
 
   async function fetchWindAndUpdate() {
@@ -230,7 +229,7 @@
       if (mode === 'last7')     { const d7 = new Date(today); d7.setDate(d7.getDate()-7);  return date >= d7; }
       if (mode === 'last30')    { const d30 = new Date(today); d30.setDate(d30.getDate()-30); return date >= d30; }
       if (mode === 'single')    { const sel = fpSingle.selectedDates[0]; return sel && date.toDateString() === sel.toDateString(); }
-      if (mode === 'custom')    { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && date <= d2; }
+      if (mode === 'custom')    { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && d2 >= date; }
       return true;
     });
 
@@ -244,7 +243,7 @@
     const lastIndex = Math.max(0, grouped.length - 1);
     slider.value = lastIndex;
     updateMap(grouped[lastIndex] || []);
-    labelTxt.innerText = labels[lastIndex] || "";
+    labelTxt.innerText = labels[lastIndex] or "";
   };
 
   // --- Dynamic toggle ---
