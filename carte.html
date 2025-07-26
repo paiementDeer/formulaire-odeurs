@@ -22,9 +22,7 @@
       display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
     }
     label, select, input[type="checkbox"], input[type="range"], span { font-size: 13px; }
-    /* Empêche le zoom iOS sur focus */
     input[type="text"], select { font-size: 16px; }
-
     input[type="range"] { width: 140px; transition: opacity 0.3s ease; }
     input[type="range"].disabled { opacity: 0.3; pointer-events: none; }
     .hidden { display: none !important; }
@@ -38,7 +36,6 @@
 <body>
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
-
 <div id="controls">
   <div style="display:flex; align-items:center;">
     <span style="margin-right:4px;">📅</span>
@@ -53,41 +50,28 @@
   </div>
   <input id="customRange" type="text" class="hidden" placeholder="Date début - fin" readonly />
   <input id="singleDate" type="text" class="hidden" placeholder="Choisir une date" readonly />
-
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
-
   <div style="display:flex; align-items:center; gap:6px;">
     <span style="margin-right:4px;">⏱️</span>
     <input type="range" id="slider" min="0" max="0" value="0" />
   </div>
   <span id="sliderLabel">00:00</span>
 </div>
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 <script>
-  // -------- Helpers --------
-  function parseFrDate(str) {
-    const [d,m,rest] = str.split('/');
-    if (!rest) return new Date(str);
-    const [y, time='00:00:00'] = rest.split(' ');
-    const [hh='0', mm='0', ss='0'] = time.split(':');
-    return new Date(+y, +m-1, +d, +hh, +mm, +ss);
-  }
-
-  // -------- Map init --------
   const map = L.map('map').setView([44.214, 0.606], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
+  const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48] });
   L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
 
   const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E","#2E0E0E"][Math.min(9, Math.max(0, i-1))];
 
-  // -------- State --------
   let allData = [], grouped = [], labels = [];
   const slider = document.getElementById('slider');
   const labelTxt = document.getElementById('sliderLabel');
@@ -96,31 +80,31 @@
   const customInput = document.getElementById('customRange');
   const singleInput = document.getElementById('singleDate');
 
-  // -------- Map rendering --------
+  function parseFrDate(str) {
+    const [d,m,rest] = str.split('/');
+    if (!rest) return new Date(str);
+    const [y, time='00:00:00'] = rest.split(' ');
+    const [hh='0', mm='0', ss='0'] = time.split(':');
+    return new Date(+y, +m-1, +d, +hh, +mm, +ss);
+  }
+
   const updateMap = (points) => {
     if (window.layer) map.removeLayer(window.layer);
     window.layer = L.layerGroup(points.map(p =>
       L.circle([p.lat, p.lon], {
-        color: getColor(p.intensite),
-        fillColor: getColor(p.intensite),
-        fillOpacity: 0.6,
-        radius: 60
+        color: getColor(p.intensite), fillColor: getColor(p.intensite),
+        fillOpacity: 0.6, radius: 60
       }).bindPopup(`<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.dateStr}`)
     )).addTo(map);
   };
 
-  // -------- Grouping --------
   const groupBy = (data, interval) => {
     const g = {};
     data.forEach(row => {
       const d = new Date(row.dateObj);
-      if (interval === '10min') {
-        d.setSeconds(0,0); d.setMinutes(Math.floor(d.getMinutes()/10)*10);
-      } else if (interval === 'hour') {
-        d.setMinutes(0,0,0);
-      } else if (interval === 'day') {
-        d.setHours(0,0,0,0);
-      }
+      if (interval === '10min') { d.setSeconds(0,0); d.setMinutes(Math.floor(d.getMinutes()/10)*10); }
+      else if (interval === 'hour') { d.setMinutes(0,0,0); }
+      else if (interval === 'day') { d.setHours(0,0,0,0); }
       const key = d.toISOString();
       (g[key] ||= []).push(row);
     });
@@ -129,13 +113,12 @@
     return keys.map(k => g[k]);
   };
 
-  // -------- Refresh logic --------
   const refresh = (mode) => {
     let gtype = 'day';
     const today = new Date();
 
     if (mode === 'today' || mode === 'yesterday' || mode === 'single') gtype = '10min';
-    else if (mode === 'last7')  gtype = 'hour';
+    else if (mode === 'last7') gtype = 'hour';
     else if (mode === 'last30') gtype = 'day';
     else if (mode === 'custom') {
       const sel = fpRange.selectedDates;
@@ -145,18 +128,17 @@
 
     const filtered = allData.filter(d => {
       const date = d.dateObj;
-      if (mode === 'today')     return date.toDateString() === today.toDateString();
+      if (mode === 'today') return date.toDateString() === today.toDateString();
       if (mode === 'yesterday') { const y = new Date(today); y.setDate(y.getDate()-1); return date.toDateString() === y.toDateString(); }
-      if (mode === 'last7')     { const d7 = new Date(today); d7.setDate(d7.getDate()-7);  return date >= d7; }
-      if (mode === 'last30')    { const d30 = new Date(today); d30.setDate(d30.getDate()-30); return date >= d30; }
-      if (mode === 'single')    { const sel = fpSingle.selectedDates[0]; return sel && date.toDateString() === sel.toDateString(); }
-      if (mode === 'custom')    { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && date <= d2; }
+      if (mode === 'last7') { const d7 = new Date(today); d7.setDate(d7.getDate()-7); return date >= d7; }
+      if (mode === 'last30') { const d30 = new Date(today); d30.setDate(d30.getDate()-30); return date >= d30; }
+      if (mode === 'single') { const sel = fpSingle.selectedDates[0]; return sel && date.toDateString() === sel.toDateString(); }
+      if (mode === 'custom') { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && date <= d2; }
       return true;
     });
 
     grouped = groupBy(filtered, gtype);
-
-    const canSlide = modeDynamic.checked && grouped.length > 0; // actif même si 1 tranche
+    const canSlide = modeDynamic.checked && grouped.length > 0;
     slider.disabled = !canSlide;
     slider.classList.toggle('disabled', !canSlide);
     slider.max = Math.max(0, grouped.length - 1);
@@ -167,7 +149,6 @@
     labelTxt.innerText = labels[lastIndex] || '';
   };
 
-  // -------- Mode dynamique --------
   modeDynamic.onchange = () => {
     const canSlide = modeDynamic.checked && grouped.length > 0;
     slider.disabled = !canSlide;
@@ -181,39 +162,39 @@
     labelTxt.innerText = labels[slider.value];
   };
 
-  // -------- Flatpickr --------
   flatpickr.setDefaults({ locale: 'fr' });
 
   const fpRange = flatpickr('#customRange', {
-    mode: 'range',
-    dateFormat: 'd/m/Y',
+    mode: 'range', dateFormat: 'd/m/Y',
     onClose: () => refresh('custom')
   });
 
   const fpSingle = flatpickr('#singleDate', {
     dateFormat: 'd/m/Y',
+    defaultDate: new Date(),
     onClose: () => refresh('single')
   });
 
-  // -------- Preset change (ONLY PART WE TOUCH) --------
   preset.onchange = (e) => {
     const val = e.target.value;
     const showCustom = val === 'custom';
     const showSingle = val === 'single';
-
     customInput.classList.toggle('hidden', !showCustom);
     singleInput.classList.toggle('hidden', !showSingle);
 
     if (showCustom) {
       setTimeout(() => { fpRange.open(); }, 0);
     } else if (showSingle) {
-      setTimeout(() => { fpSingle.open(); }, 0);
+      setTimeout(() => {
+        fpSingle.setDate(new Date());
+        fpSingle.open();
+        refresh('single');
+      }, 0);
     } else {
       refresh(val);
     }
   };
 
-  // -------- Load data --------
   fetch('https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201')
     .then(res => res.json())
     .then(rows => {
@@ -226,8 +207,7 @@
           intensite: parseInt(r['Intensité']),
           type: r['Type d’odeur'],
           commentaire: r['Commentaire'],
-          dateStr,
-          dateObj
+          dateStr, dateObj
         };
       }).filter(d => !isNaN(d.lat) && !isNaN(d.lon) && d.dateObj instanceof Date && !isNaN(d.dateObj));
       refresh('today');
