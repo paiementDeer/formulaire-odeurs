@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Carte - Usine ATEMAX</title>
+  <title>Carte - Usine ATEMAX (corrigé)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -24,7 +24,12 @@
     label, select, input[type="checkbox"], input[type="range"], span { font-size: 13px; }
     input[type="range"] { width: 140px; transition: opacity 0.3s ease; }
     input[type="range"].disabled { opacity: 0.3; pointer-events: none; }
-    .hidden { display: none !important; }
+
+    /* FIX: ne pas utiliser display:none pour l'input Flatpickr qu'on veut ouvrir immédiatement */
+    .hidden {
+      opacity: 0; pointer-events: none; position: absolute; left: -9999px; top: -9999px;
+    }
+
     .flatpickr-calendar { z-index: 3000 !important; }
     @media (max-width: 600px) {
       #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
@@ -203,10 +208,11 @@
     customInput.classList.toggle("hidden", !showCustom);
     singleInput.classList.toggle("hidden", !showSingle);
 
+    // FIX: ouvrir le calendrier uniquement APRÈS l'affichage effectif de l'input
     if (showCustom) {
-      setTimeout(() => fpRange.open(), 0);
+      requestAnimationFrame(() => fpRange.open());
     } else if (showSingle) {
-      setTimeout(() => fpSingle.open(), 0);
+      requestAnimationFrame(() => fpSingle.open());
     } else {
       refresh(val);
     }
