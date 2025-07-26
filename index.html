@@ -4,72 +4,142 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Signalement Odeur</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Flowbite (composants) -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet" />
+  <!-- noUiSlider -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
+
+  <style>
+    #intensiteSlider .noUi-base {
+      height: 18px;
+      border-radius: 9999px;
+      background: linear-gradient(90deg,
+        rgba(173,184,125,0.25) 0%,
+        rgba(130,143,73,0.45) 40%,
+        rgba(92,103,41,0.65) 70%,
+        rgba(55,63,20,0.85) 100%
+      );
+      box-shadow:
+        inset 0 0 6px rgba(255,255,255,0.4),
+        0 2px 6px rgba(0,0,0,0.25);
+      backdrop-filter: blur(3px);
+    }
+    #intensiteSlider .noUi-connect { background: transparent; }
+    .noUi-tooltip {
+      font-size: .85rem;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      border: none;
+      border-radius: .4rem;
+      padding: .2rem .45rem;
+    }
+    #overlay { transition: opacity .2s; }
+  </style>
 </head>
-<body>
-  <h2>📢 Signaler une odeur</h2>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+  <div id="overlay" class="fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 hidden">
+    <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+    <p class="text-white mt-4 text-lg">Envoi en cours…</p>
+  </div>
 
-  <form id="form">
-    <label>Intensité (1–10) :</label><br>
-    <input type="number" id="intensite" name="intensite" min="1" max="10" required><br><br>
+  <main class="w-full max-w-md">
+    <div class="bg-white shadow-2xl rounded-2xl p-6">
+      <h2 class="text-2xl font-semibold mb-6 text-slate-800 flex items-center gap-2">
+        📢 Signalement d'odeur
+      </h2>
 
-    <label>Type d'odeur :</label><br>
-    <select id="type" required>
-      <option value="charogne">Charogne</option>
-      <option value="acide">Acide</option>
-      <option value="brûlé">Brûlé</option>
-      <option value="plastique">Plastique</option>
-      <option value="chimique">Chimique</option>
-    </select><br><br>
+      <form id="form" class="space-y-6">
+        <div>
+          <label class="block mb-2 font-medium text-slate-700" for="intensiteSlider">
+            Intensité (1–10)
+          </label>
+          <div id="intensiteSlider" class="mt-2"></div>
+          <input type="hidden" id="intensite" name="intensite" required>
+        </div>
 
-    <label>Commentaire :</label><br>
-    <textarea id="commentaire" rows="3"></textarea><br><br>
+        <div>
+          <label class="block mb-2 font-medium text-slate-700" for="type">Type d'odeur</label>
+          <select id="type" name="type" required class="block w-full rounded-lg border-slate-300 focus:border-slate-500 focus:ring-slate-500">
+            <option value="charogne">Charogne</option>
+            <option value="acide">Acide</option>
+            <option value="brûlé">Brûlé</option>
+            <option value="plastique">Plastique</option>
+            <option value="chimique">Chimique</option>
+            <option value="croquettes">Croquettes</option>
+            <option value="animal_en_decomposition">Animal en décomposition</option>
+            <option value="fumee">Fumée</option>
+            <option value="vomi">Vomi</option>
+            <option value="egout">Égout</option>
+            <option value="oeuf_pourri">Œuf pourri</option>
+            <option value="urine">Urine</option>
+            <option value="purin">Purin</option>
+            <option value="gaz">Gaz</option>
+          </select>
+        </div>
 
-    <input type="hidden" id="latitude">
-    <input type="hidden" id="longitude">
-    <input type="hidden" id="ip">
+        <div>
+          <label class="block mb-2 font-medium text-slate-700" for="commentaire">Commentaire</label>
+          <textarea id="commentaire" name="commentaire" rows="3" class="block w-full rounded-lg border-slate-300 focus:border-slate-500 focus:ring-slate-500" placeholder="Décris l'odeur, la météo, etc."></textarea>
+        </div>
 
-    <button type="submit">Envoyer</button>
-  </form>
+        <input type="hidden" id="latitude" name="latitude">
+        <input type="hidden" id="longitude" name="longitude">
+        <input type="hidden" id="ip" name="ip">
 
+        <button type="submit" class="w-full py-3 rounded-lg bg-slate-800 text-white font-semibold hover:bg-slate-700 transition">
+          Envoyer
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
   <script>
-    const form = document.getElementById("form");
-
-    // Récupération géolocalisation
-    navigator.geolocation.getCurrentPosition(function(position) {
-      document.getElementById("latitude").value = position.coords.latitude;
-      document.getElementById("longitude").value = position.coords.longitude;
+    noUiSlider.create(document.getElementById('intensiteSlider'), {
+      start: 5,
+      step: 1,
+      range: { min: 1, max: 10 },
+      tooltips: true,
+      format: { to: v => Math.round(v), from: v => Number(v) }
+    }).on('update', vals => {
+      document.getElementById('intensite').value = vals[0];
     });
 
-    // Récupération adresse IP via API publique
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById('latitude').value = pos.coords.latitude;
+        document.getElementById('longitude').value = pos.coords.longitude;
+      });
+    }
+
     fetch("https://api.ipify.org?format=json")
       .then(res => res.json())
       .then(data => {
         document.getElementById("ip").value = data.ip;
       });
 
-    // Soumission du formulaire
-    form.addEventListener("submit", function(e) {
+    const overlay = document.getElementById('overlay');
+    const form = document.getElementById('form');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      overlay.classList.remove('hidden');
+      const data = Object.fromEntries(new FormData(form).entries());
 
-      const data = {
-        intensite: document.getElementById("intensite").value,
-        type: document.getElementById("type").value,
-        commentaire: document.getElementById("commentaire").value,
-        latitude: document.getElementById("latitude").value,
-        longitude: document.getElementById("longitude").value,
-        ip: document.getElementById("ip").value
-      };
-
-      fetch("https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec", {
-        method: "POST",
-        body: JSON.stringify(data)
-      })
-      .then(() => {
-        window.location.href = "carte.html";
-      })
-      .catch(() => {
-        alert("❌ Erreur lors de l’envoi du signalement.");
-      });
+      try {
+        await fetch(
+          'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec',
+          { method: 'POST', body: JSON.stringify(data) }
+        );
+        window.location.href = 'carte.html';
+      } catch {
+        overlay.classList.add('hidden');
+        alert('❌ Erreur lors de l’envoi du signalement.');
+      }
     });
   </script>
 </body>
