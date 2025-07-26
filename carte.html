@@ -178,9 +178,10 @@
     }), gtype);
 
     slider.max = grouped.length-1;
-    slider.value = 0;
-    updateMap(grouped[0]);
-    label.innerText = labels[0];
+    const lastIndex = grouped.length - 1;
+    slider.value = lastIndex;
+    updateMap(grouped[lastIndex]);
+    label.innerText = labels[lastIndex];
   };
 
   modeDynamic.onchange = () => {
