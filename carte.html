@@ -200,7 +200,6 @@
     const val = e.target.value;
     document.getElementById("customRange").style.display = (val === "custom") ? "inline-block" : "none";
     document.getElementById("singleDate").style.display = (val === "single") ? "inline-block" : "none";
-
     if (val === "custom") {
       document.getElementById("customRange")._flatpickr.open();
     } else if (val === "single") {
