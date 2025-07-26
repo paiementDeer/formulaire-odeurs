@@ -2,30 +2,12 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Carte des odeurs - Données réelles</title>
+  <title>Carte - Usine ATEMAX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
     html, body, #map { height: 100%; margin: 0; font-family: sans-serif; }
-    #controls {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: white;
-      padding: 6px 10px;
-      border-radius: 10px;
-      font-size: 13px;
-      z-index: 1000;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      max-width: 92vw;
-    }
     #new-signal {
       position: absolute;
       top: 10px;
@@ -41,13 +23,47 @@
       text-decoration: none;
       color: black;
     }
+    #controls {
+      max-width: 92vw;
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      z-index: 1000;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    label, select, input[type="checkbox"], input[type="range"], span {
+      font-size: 13px;
+    }
     input[type="range"] {
-      width: 120px;
+      width: 140px;
       transition: opacity 0.3s ease;
     }
     input[type="range"].disabled {
       opacity: 0.3;
       pointer-events: none;
+    }
+    .datepicker {
+      display: none;
+    }
+    @media (max-width: 600px) {
+      #controls {
+        flex-wrap: wrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+      }
+      input[type="range"] {
+        width: 100px;
+      }
     }
   </style>
 </head>
@@ -55,18 +71,24 @@
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
 <div id="controls">
-  <label>📅 <select id="preset">
-    <option value="today">Aujourd'hui</option>
-    <option value="yesterday">Hier</option>
-    <option value="last7">7 derniers jours</option>
-    <option value="last30">30 derniers jours</option>
-    <option value="custom">Période personnalisée</option>
-    <option value="single">Choisir une date</option>
-  </select></label>
+  <div style="display: flex; align-items: center;">
+    <span style="margin-right: 4px;">📅</span>
+    <select id="preset">
+      <option value="today">Aujourd’hui</option>
+      <option value="yesterday">Hier</option>
+      <option value="last7">7 derniers jours</option>
+      <option value="last30">30 derniers jours</option>
+      <option value="custom">Période personnalisée</option>
+      <option value="single">Choisir une date</option>
+    </select>
+  </div>
   <input id="customRange" class="datepicker" placeholder="Date début - fin" />
-  <input id="singleDate" class="datepicker" placeholder="Date" />
+  <input id="singleDate" class="datepicker" placeholder="Choisir une date" />
   <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
-  <label>⏱️ <input type="range" id="slider" min="0" max="0" value="0" /></label>
+  <div class="slider-wrap" style="display: flex; align-items: center; gap: 6px;">
+    <span style="margin-right: 4px;">⏱️</span>
+    <input type="range" id="slider" min="0" max="0" value="0" />
+  </div>
   <span id="sliderLabel">00:00</span>
 </div>
 
@@ -74,9 +96,14 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 <script>
-  const sheetUrl = "https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201";
-  const map = L.map('map').setView([44.2128, 0.5979], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+  const map = L.map('map').setView([44.214, 0.606], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const usineIcon = L.divIcon({ html: '<div style="font-size: 48px;">🏭</div>', iconSize: [48, 48], className: 'usine-marker' });
+  L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
 
   const getColor = i => ["#FADADD", "#F5B7B1", "#EC7063", "#E74C3C", "#CB4335", "#943126", "#78281F", "#641E16", "#512E2E", "#2E0E0E"][Math.min(9, Math.max(0, i-1))];
 
@@ -173,7 +200,7 @@
   flatpickr("#customRange", { mode: "range", dateFormat: "d/m/Y", onClose: () => refresh("custom") });
   flatpickr("#singleDate", { dateFormat: "d/m/Y", onClose: () => refresh("single") });
 
-  fetch(sheetUrl)
+  fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201")
     .then(res => res.json())
     .then(rows => {
       allData = rows.map(r => ({
