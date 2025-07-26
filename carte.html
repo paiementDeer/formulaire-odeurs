@@ -25,6 +25,7 @@
       color: black;
     }
     #controls {
+      max-width: 95vw;
       position: absolute;
       bottom: 10px;
       left: 50%;
@@ -57,19 +58,33 @@
     }
     @media (max-width: 600px) {
       #controls {
+      max-width: 95vw;
         flex-wrap: wrap;
       }
       input[type="range"] {
         width: 100px;
       }
     }
-  </style>
+  
+    .select-container {
+      display: flex;
+      align-items: center;
+      flex-shrink: 1;
+    }
+    @media (max-width: 600px) {
+      #controls {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+      }
+    }
+    </style>
 </head>
 <body>
 <a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
 <div id="controls">
-  <div style="display: flex; align-items: center;"><span style="margin-right: 4px;">📅</span><select id="preset">
+  <div class="select-container"><span style="margin-right: 4px;">📅</span><select id="preset">
     <option value="today">Aujourd’hui</option>
     <option value="yesterday">Hier</option>
     <option value="last7">7 derniers jours</option>
