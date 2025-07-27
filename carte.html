@@ -47,11 +47,6 @@
       padding:3px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);
       font-weight:bold;text-align:center;margin-top:4px;
     }
-
-    @media (max-width: 600px) {
-      #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
-      input[type="range"] { width: 100px; }
-    }
   </style>
 </head>
 <body>
@@ -100,8 +95,6 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
-<!-- === AJOUT NUAGE === PolylineDecorator pour dessiner/faire bouger les petites flèches -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-polylinedecorator/1.7.0/leaflet.polylineDecorator.min.js"></script>
 
 <script>
 // ==================== Helpers ====================
@@ -173,61 +166,6 @@ let isPlaying = false;
 let playTimer = null;
 let frameDelay = 1000; // ms
 
-// ==================== AJOUT NUAGE : flèches animées USINE -> points ====================
-let beamLinesLayer = null;
-let beamDecorators = [];
-let beamAnimId = null;
-let beamOffset = 0;
-
-function clearBeams(){
-  if (beamLinesLayer){ map.removeLayer(beamLinesLayer); beamLinesLayer = null; }
-  if (beamDecorators.length){
-    beamDecorators.forEach(o => map.removeLayer(o.deco));
-    beamDecorators = [];
-  }
-  if (beamAnimId){ cancelAnimationFrame(beamAnimId); beamAnimId = null; }
-  beamOffset = 0;
-}
-
-function startBeamAnim(){
-  function step(){
-    beamOffset = (beamOffset + 2) % 100;
-    beamDecorators.forEach(o=>{
-      o.deco.setPatterns([{
-        offset: beamOffset + '%',
-        repeat: '12%',
-        symbol: o.symbol
-      }]);
-    });
-    beamAnimId = requestAnimationFrame(step);
-  }
-  step();
-}
-
-function updateBeams(points){
-  clearBeams();
-  if (!points || !points.length) return;
-
-  const lines = points.map(p => L.polyline([USINE, [p.lat, p.lon]], { color:'transparent', weight:0 }));
-  beamLinesLayer = L.layerGroup(lines).addTo(map);
-
-  lines.forEach((line, i) => {
-    const col = getColor(points[i].intensite || 5);
-    const symbol = L.Symbol.arrowHead({
-      pixelSize: 8,
-      headAngle: 60,
-      pathOptions: { color: col, weight: 2, opacity: 0.9 }
-    });
-    const deco = L.polylineDecorator(line, {
-      patterns: [{ offset: '0%', repeat: '12%', symbol }]
-    }).addTo(map);
-    beamDecorators.push({ deco, symbol });
-  });
-
-  startBeamAnim();
-}
-// ==================== FIN AJOUT NUAGE ====================
-
 // ==================== Map update ====================
 const updateMap = (points) => {
   if (window.layer) map.removeLayer(window.layer);
@@ -258,7 +196,7 @@ const groupBy = (data, interval) => {
     else if (interval === 'day') { d.setHours(0,0,0,0); }
     const key = d.toISOString();
     (g[key] ||= []).push(row);
-    });
+  });
   const keys = Object.keys(g).sort();
   labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
 
@@ -272,7 +210,7 @@ function setFrame(idx){
   slider.value = idx;
   const pts = grouped[idx] || [];
   updateMap(pts);
-  updateBeams(pts); // === AJOUT NUAGE ===
+  setParticlesPoints(pts); // === PARTICULES ===
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -282,7 +220,7 @@ function setFrame(idx){
 function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
-  updateBeams(flat); // === AJOUT NUAGE ===
+  setParticlesPoints(flat); // === PARTICULES ===
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -326,7 +264,7 @@ const refresh = (mode) => {
 
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
-    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
+    play(); // auto
   } else {
     pause();
     showSynthesis();
@@ -423,6 +361,117 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
 
     refresh('today'); // Synthèse par défaut
   });
+
+/* ===================================================================
+   ===============  PARTICULES USINE -> POINTS  =======================
+   =================================================================== */
+let partCanvas, pctx, particles = [], segments = [];
+let partAnimId = null;
+const PART_TOTAL_MAX = 600;
+
+function initParticlesCanvas(){
+  partCanvas = document.createElement('canvas');
+  partCanvas.className = 'particle-canvas';
+  partCanvas.style.pointerEvents = 'none';
+  map.getPanes().overlayPane.appendChild(partCanvas);
+  pctx = partCanvas.getContext('2d');
+
+  function resize(){
+    const size = map.getSize();
+    partCanvas.width = size.x;
+    partCanvas.height = size.y;
+    updateSegmentsPx();
+  }
+  resize();
+  map.on('resize', resize);
+  map.on('moveend zoomend', () => {
+    resize();
+    updateSegmentsPx();
+  });
+}
+
+function buildSegments(points){
+  segments = points.map(p=>{
+    return {
+      start: L.latLng(USINE[0], USINE[1]),
+      end:   L.latLng(p.lat, p.lon),
+      color: getColor(p.intensite || 5),
+      startPx:null, endPx:null, vecX:0, vecY:0, len:1
+    };
+  });
+  updateSegmentsPx();
+}
+
+function updateSegmentsPx(){
+  if(!segments.length) return;
+  segments.forEach(s=>{
+    s.startPx = map.latLngToContainerPoint(s.start);
+    s.endPx   = map.latLngToContainerPoint(s.end);
+    s.vecX    = s.endPx.x - s.startPx.x;
+    s.vecY    = s.endPx.y - s.startPx.y;
+    s.len     = Math.sqrt(s.vecX*s.vecX + s.vecY*s.vecY) || 1;
+  });
+}
+
+function spawnParticle(p){
+  if(!segments.length) return;
+  const segIndex = Math.floor(Math.random()*segments.length);
+  const s = segments[segIndex];
+  p.seg = segIndex;
+  p.t = Math.random()*0.1;            // proche du départ
+  p.size = 1 + Math.random()*1.5;
+  p.alpha = 0.3 + Math.random()*0.5;
+  p.speed = 0.003 + Math.random()*0.004; // fraction du segment / frame
+}
+
+function setParticlesPoints(points){
+  if(!pctx) initParticlesCanvas();
+
+  if(!points || !points.length){
+    particles = [];
+    segments = [];
+    if(pctx) pctx.clearRect(0,0,partCanvas.width,partCanvas.height);
+    return;
+  }
+
+  buildSegments(points);
+
+  const target = Math.min(PART_TOTAL_MAX, segments.length * 40);
+  if(particles.length < target){
+    for(let i=particles.length; i<target; i++){
+      const p = {};
+      spawnParticle(p);
+      particles.push(p);
+    }
+  } else if(particles.length > target){
+    particles.length = target;
+  }
+
+  if(!partAnimId) animateParticles();
+}
+
+function animateParticles(){
+  partAnimId = requestAnimationFrame(animateParticles);
+  if(!pctx){ return; }
+  pctx.clearRect(0,0,partCanvas.width,partCanvas.height);
+
+  particles.forEach(p=>{
+    const s = segments[p.seg];
+    if(!s){ spawnParticle(p); return; }
+
+    const x = s.startPx.x + s.vecX * p.t;
+    const y = s.startPx.y + s.vecY * p.t;
+
+    pctx.globalAlpha = p.alpha;
+    pctx.fillStyle = s.color;
+    pctx.beginPath();
+    pctx.arc(x, y, p.size, 0, Math.PI*2);
+    pctx.fill();
+
+    p.t += p.speed;
+    if(p.t > 1){ spawnParticle(p); }
+  });
+}
 </script>
 </body>
 </html>
