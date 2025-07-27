@@ -226,6 +226,7 @@ function showSynthesis(){
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+  setParticlesPoints(flat); // === PARTICULES === uniquement ici
 }
 
 // ==================== Refresh (filter + regroup) ====================
@@ -266,7 +267,8 @@ const refresh = (mode) => {
 
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
-    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
+    play(); // si on arrive ici avec la case déjà cochée
+    particlesClear(); // === PARTICULES === on enlève le nuage si on passe en dynamique
   } else {
     pause();
     showSynthesis();
@@ -282,12 +284,13 @@ modeDynamic.onchange = () => {
 
   if (!modeDynamic.checked) {
     pause();
-    showSynthesis();
+    showSynthesis(); // remettra le nuage
   } else {
     slider.max = Math.max(0, grouped.length - 1);
     if (+slider.value > +slider.max) slider.value = slider.max;
     setFrame(+slider.value || 0);
     play(); // Lecture auto à l’activation
+    particlesClear(); // === PARTICULES ===
   }
 };
 
@@ -365,10 +368,10 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
   });
 
 /* ===================================================================
-   ===============  PARTICULES USINE -> POINTS (Synthèse SEULEMENT)  =
+   ===============  PARTICULES (nuage noir/gris)  =====================
    =================================================================== */
 // === PARTICULES === variables
-let pCanvas, pCtx, particles = [], segments = [];
+let pCanvas, pCtx, particles = [], segs = [];
 let pAnimId = null;
 const PART_TOTAL_MAX = 600;
 
@@ -387,51 +390,52 @@ function initParticlesCanvas(){
     const size = map.getSize();
     pCanvas.width = size.x;
     pCanvas.height = size.y;
-    updateSegmentsPx();
+    updateSegPixels();
   }
   resize();
   map.on('resize', resize);
   map.on('moveend zoomend', () => {
     resize();
-    updateSegmentsPx();
+    updateSegPixels();
   });
 }
 
+// segments usine -> point
 function buildSegments(points){
-  segments = points.map(p=>({
-    start: L.latLng(USINE[0], USINE[1]),
-    end:   L.latLng(p.lat, p.lon),
-    color: getColor(p.intensite || 5),
-    startPx:null, endPx:null, vecX:0, vecY:0, len:1
+  segs = points.map(p=>({
+    sLL: L.latLng(USINE[0], USINE[1]),
+    eLL: L.latLng(p.lat, p.lon),
+    sPx:null, ePx:null, vx:0, vy:0, len:1
   }));
-  updateSegmentsPx();
+  updateSegPixels();
 }
 
-function updateSegmentsPx(){
-  if(!segments.length) return;
-  segments.forEach(s=>{
-    s.startPx = map.latLngToContainerPoint(s.start);
-    s.endPx   = map.latLngToContainerPoint(s.end);
-    s.vecX    = s.endPx.x - s.startPx.x;
-    s.vecY    = s.endPx.y - s.startPx.y;
-    s.len     = Math.sqrt(s.vecX*s.vecX + s.vecY*s.vecY) || 1;
+function updateSegPixels(){
+  if(!segs.length) return;
+  segs.forEach(s=>{
+    s.sPx = map.latLngToContainerPoint(s.sLL);
+    s.ePx = map.latLngToContainerPoint(s.eLL);
+    s.vx  = s.ePx.x - s.sPx.x;
+    s.vy  = s.ePx.y - s.sPx.y;
+    s.len = Math.sqrt(s.vx*s.vx + s.vy*s.vy) || 1;
   });
 }
 
 function spawnParticle(p){
-  if(!segments.length) return;
-  const segIndex = Math.floor(Math.random()*segments.length);
-  const s = segments[segIndex];
-  p.seg = segIndex;
-  p.t = Math.random()*0.1;               // proche du départ
-  p.size = 1 + Math.random()*1.6;
-  p.alpha = 0.25 + Math.random()*0.5;
-  p.speed = 0.003 + Math.random()*0.004; // fraction / frame
+  if(!segs.length) return;
+  const idx = Math.floor(Math.random()*segs.length);
+  const s = segs[idx];
+  p.seg = idx;
+  p.t = Math.random()*0.1;             // proche du départ
+  p.size = 6 + Math.random()*18;       // plus large que la version point
+  p.alpha = 0.15 + Math.random()*0.25; // fumée légère
+  p.speed = 0.0025 + Math.random()*0.0035;
+  p.gray  = 40 + Math.floor(Math.random()*60); // nuance gris foncé
 }
 
 function particlesClear(){
   particles = [];
-  segments = [];
+  segs = [];
   if(pCtx && pCanvas){
     pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
   }
@@ -442,7 +446,7 @@ function particlesClear(){
 }
 
 function setParticlesPoints(points){
-  // N'affiche que si modeDynamic est décoché
+  // On ne dessine QUE si mode dynamique est décoché
   if(modeDynamic.checked){
     particlesClear();
     return;
@@ -457,7 +461,7 @@ function setParticlesPoints(points){
 
   buildSegments(points);
 
-  const target = Math.min(PART_TOTAL_MAX, segments.length * 40);
+  const target = Math.min(PART_TOTAL_MAX, segs.length * 40);
   if(particles.length < target){
     for(let i=particles.length; i<target; i++){
       const p = {};
@@ -474,17 +478,24 @@ function setParticlesPoints(points){
 function animateParticles(){
   pAnimId = requestAnimationFrame(animateParticles);
   if(!pCtx) return;
+
   pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
 
   particles.forEach(p=>{
-    const s = segments[p.seg];
+    const s = segs[p.seg];
     if(!s){ spawnParticle(p); return; }
 
-    const x = s.startPx.x + s.vecX * p.t;
-    const y = s.startPx.y + s.vecY * p.t;
+    const x = s.sPx.x + s.vx * p.t;
+    const y = s.sPx.y + s.vy * p.t;
 
-    pCtx.globalAlpha = p.alpha;
-    pCtx.fillStyle = s.color;
+    // Nuage type démo : dégradé radial noir -> transparent
+    const g = pCtx.createRadialGradient(x, y, 0, x, y, p.size);
+    const alpha = p.alpha;
+    const c = p.gray;
+    g.addColorStop(0, `rgba(${c},${c},${c},${alpha})`);
+    g.addColorStop(1, `rgba(${c},${c},${c},0)`);
+
+    pCtx.fillStyle = g;
     pCtx.beginPath();
     pCtx.arc(x, y, p.size, 0, Math.PI*2);
     pCtx.fill();
@@ -493,23 +504,6 @@ function animateParticles(){
     if(p.t > 1){ spawnParticle(p); }
   });
 }
-
-// === PARTICULES === hook SANS modifier tes fonctions
-// après leur définition :
-const __origShowSynthesis = showSynthesis;
-showSynthesis = function(){
-  __origShowSynthesis();
-  setParticlesPoints(grouped.flat());
-};
-
-// Quand on repasse en dynamique, on nettoie (sans toucher ton onchange original)
-modeDynamic.addEventListener('change', ()=>{
-  if(modeDynamic.checked){
-    particlesClear();
-  } else {
-    // quand on décoche, showSynthesis sera appelé par ton code -> les particules se remettront
-  }
-});
 </script>
 </body>
 </html>
