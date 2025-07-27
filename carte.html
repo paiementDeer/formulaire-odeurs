@@ -47,6 +47,11 @@
       padding:3px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);
       font-weight:bold;text-align:center;margin-top:4px;
     }
+
+    @media (max-width: 600px) {
+      #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
+      input[type="range"] { width: 100px; }
+    }
   </style>
 </head>
 <body>
@@ -196,7 +201,7 @@ const groupBy = (data, interval) => {
     else if (interval === 'day') { d.setHours(0,0,0,0); }
     const key = d.toISOString();
     (g[key] ||= []).push(row);
-  });
+    });
   const keys = Object.keys(g).sort();
   labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
 
@@ -208,9 +213,7 @@ const groupBy = (data, interval) => {
 function setFrame(idx){
   idx = Math.max(0, Math.min(idx, grouped.length-1));
   slider.value = idx;
-  const pts = grouped[idx] || [];
-  updateMap(pts);
-  setParticlesPoints(pts); // === PARTICULES ===
+  updateMap(grouped[idx] || []);
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -220,7 +223,6 @@ function setFrame(idx){
 function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
-  setParticlesPoints(flat); // === PARTICULES ===
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -264,7 +266,7 @@ const refresh = (mode) => {
 
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
-    play(); // auto
+    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
   } else {
     pause();
     showSynthesis();
@@ -363,23 +365,28 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
   });
 
 /* ===================================================================
-   ===============  PARTICULES USINE -> POINTS  =======================
+   ===============  PARTICULES USINE -> POINTS (Synthèse SEULEMENT)  =
    =================================================================== */
-let partCanvas, pctx, particles = [], segments = [];
-let partAnimId = null;
+// === PARTICULES === variables
+let pCanvas, pCtx, particles = [], segments = [];
+let pAnimId = null;
 const PART_TOTAL_MAX = 600;
 
+// === PARTICULES === init canvas overlay
 function initParticlesCanvas(){
-  partCanvas = document.createElement('canvas');
-  partCanvas.className = 'particle-canvas';
-  partCanvas.style.pointerEvents = 'none';
-  map.getPanes().overlayPane.appendChild(partCanvas);
-  pctx = partCanvas.getContext('2d');
+  pCanvas = document.createElement('canvas');
+  pCanvas.className = 'particle-canvas';
+  pCanvas.style.pointerEvents = 'none';
+  pCanvas.style.position = 'absolute';
+  pCanvas.style.top = 0;
+  pCanvas.style.left = 0;
+  map.getPanes().overlayPane.appendChild(pCanvas);
+  pCtx = pCanvas.getContext('2d');
 
   function resize(){
     const size = map.getSize();
-    partCanvas.width = size.x;
-    partCanvas.height = size.y;
+    pCanvas.width = size.x;
+    pCanvas.height = size.y;
     updateSegmentsPx();
   }
   resize();
@@ -391,14 +398,12 @@ function initParticlesCanvas(){
 }
 
 function buildSegments(points){
-  segments = points.map(p=>{
-    return {
-      start: L.latLng(USINE[0], USINE[1]),
-      end:   L.latLng(p.lat, p.lon),
-      color: getColor(p.intensite || 5),
-      startPx:null, endPx:null, vecX:0, vecY:0, len:1
-    };
-  });
+  segments = points.map(p=>({
+    start: L.latLng(USINE[0], USINE[1]),
+    end:   L.latLng(p.lat, p.lon),
+    color: getColor(p.intensite || 5),
+    startPx:null, endPx:null, vecX:0, vecY:0, len:1
+  }));
   updateSegmentsPx();
 }
 
@@ -418,19 +423,35 @@ function spawnParticle(p){
   const segIndex = Math.floor(Math.random()*segments.length);
   const s = segments[segIndex];
   p.seg = segIndex;
-  p.t = Math.random()*0.1;            // proche du départ
-  p.size = 1 + Math.random()*1.5;
-  p.alpha = 0.3 + Math.random()*0.5;
-  p.speed = 0.003 + Math.random()*0.004; // fraction du segment / frame
+  p.t = Math.random()*0.1;               // proche du départ
+  p.size = 1 + Math.random()*1.6;
+  p.alpha = 0.25 + Math.random()*0.5;
+  p.speed = 0.003 + Math.random()*0.004; // fraction / frame
+}
+
+function particlesClear(){
+  particles = [];
+  segments = [];
+  if(pCtx && pCanvas){
+    pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  }
+  if(pAnimId){
+    cancelAnimationFrame(pAnimId);
+    pAnimId = null;
+  }
 }
 
 function setParticlesPoints(points){
-  if(!pctx) initParticlesCanvas();
+  // N'affiche que si modeDynamic est décoché
+  if(modeDynamic.checked){
+    particlesClear();
+    return;
+  }
+
+  if(!pCtx) initParticlesCanvas();
 
   if(!points || !points.length){
-    particles = [];
-    segments = [];
-    if(pctx) pctx.clearRect(0,0,partCanvas.width,partCanvas.height);
+    particlesClear();
     return;
   }
 
@@ -447,13 +468,13 @@ function setParticlesPoints(points){
     particles.length = target;
   }
 
-  if(!partAnimId) animateParticles();
+  if(!pAnimId) animateParticles();
 }
 
 function animateParticles(){
-  partAnimId = requestAnimationFrame(animateParticles);
-  if(!pctx){ return; }
-  pctx.clearRect(0,0,partCanvas.width,partCanvas.height);
+  pAnimId = requestAnimationFrame(animateParticles);
+  if(!pCtx) return;
+  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
 
   particles.forEach(p=>{
     const s = segments[p.seg];
@@ -462,16 +483,33 @@ function animateParticles(){
     const x = s.startPx.x + s.vecX * p.t;
     const y = s.startPx.y + s.vecY * p.t;
 
-    pctx.globalAlpha = p.alpha;
-    pctx.fillStyle = s.color;
-    pctx.beginPath();
-    pctx.arc(x, y, p.size, 0, Math.PI*2);
-    pctx.fill();
+    pCtx.globalAlpha = p.alpha;
+    pCtx.fillStyle = s.color;
+    pCtx.beginPath();
+    pCtx.arc(x, y, p.size, 0, Math.PI*2);
+    pCtx.fill();
 
     p.t += p.speed;
     if(p.t > 1){ spawnParticle(p); }
   });
 }
+
+// === PARTICULES === hook SANS modifier tes fonctions
+// après leur définition :
+const __origShowSynthesis = showSynthesis;
+showSynthesis = function(){
+  __origShowSynthesis();
+  setParticlesPoints(grouped.flat());
+};
+
+// Quand on repasse en dynamique, on nettoie (sans toucher ton onchange original)
+modeDynamic.addEventListener('change', ()=>{
+  if(modeDynamic.checked){
+    particlesClear();
+  } else {
+    // quand on décoche, showSynthesis sera appelé par ton code -> les particules se remettront
+  }
+});
 </script>
 </body>
 </html>
