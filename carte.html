@@ -100,7 +100,7 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
-<!-- PolylineDecorator pour les petites flèches animées -->
+<!-- === AJOUT NUAGE === PolylineDecorator pour dessiner/faire bouger les petites flèches -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-polylinedecorator/1.7.0/leaflet.polylineDecorator.min.js"></script>
 
 <script>
@@ -173,7 +173,7 @@ let isPlaying = false;
 let playTimer = null;
 let frameDelay = 1000; // ms
 
-// ==================== Small arrows cloud (beams) ====================
+// ==================== AJOUT NUAGE : flèches animées USINE -> points ====================
 let beamLinesLayer = null;
 let beamDecorators = [];
 let beamAnimId = null;
@@ -186,6 +186,7 @@ function clearBeams(){
     beamDecorators = [];
   }
   if (beamAnimId){ cancelAnimationFrame(beamAnimId); beamAnimId = null; }
+  beamOffset = 0;
 }
 
 function startBeamAnim(){
@@ -203,18 +204,11 @@ function startBeamAnim(){
   step();
 }
 
-/**
- * points: array of {lat, lon, intensite, ...}
- */
 function updateBeams(points){
   clearBeams();
   if (!points || !points.length) return;
 
-  const lines = points.map(p => L.polyline([USINE, [p.lat, p.lon]], {
-    color: 'transparent',
-    weight: 0
-  }));
-
+  const lines = points.map(p => L.polyline([USINE, [p.lat, p.lon]], { color:'transparent', weight:0 }));
   beamLinesLayer = L.layerGroup(lines).addTo(map);
 
   lines.forEach((line, i) => {
@@ -232,6 +226,7 @@ function updateBeams(points){
 
   startBeamAnim();
 }
+// ==================== FIN AJOUT NUAGE ====================
 
 // ==================== Map update ====================
 const updateMap = (points) => {
@@ -263,7 +258,7 @@ const groupBy = (data, interval) => {
     else if (interval === 'day') { d.setHours(0,0,0,0); }
     const key = d.toISOString();
     (g[key] ||= []).push(row);
-  });
+    });
   const keys = Object.keys(g).sort();
   labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
 
@@ -277,7 +272,7 @@ function setFrame(idx){
   slider.value = idx;
   const pts = grouped[idx] || [];
   updateMap(pts);
-  updateBeams(pts); // <<< ajout
+  updateBeams(pts); // === AJOUT NUAGE ===
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -287,7 +282,7 @@ function setFrame(idx){
 function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
-  updateBeams(flat); // <<< ajout
+  updateBeams(flat); // === AJOUT NUAGE ===
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -331,7 +326,7 @@ const refresh = (mode) => {
 
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
-    play(); // si dynamique activé, on lance
+    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
   } else {
     pause();
     showSynthesis();
