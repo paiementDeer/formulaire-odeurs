@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Carte ATEMAX – AutoPlay + Synthèse correcte</title>
+  <title>Carte ATEMAX – AutoPlay + Synthèse OK</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Leaflet -->
@@ -73,7 +73,7 @@
   <input id="customRange" type="text" class="hidden" placeholder="Date début - fin" readonly />
   <input id="singleDate" type="text" class="hidden" placeholder="Choisir une date" readonly />
 
-  <!-- Par défaut décoché -->
+  <!-- Par défaut décoché pour afficher la synthèse -->
   <label><input type="checkbox" id="modeDynamic" /> Évolution dynamique</label>
 
   <div style="display:flex; align-items:center; gap:6px;">
@@ -113,8 +113,7 @@ function parseFrDate(str){
 function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:NaN;}
 function avgDir(degArr){
   if(!degArr.length) return NaN;
-  let x=0,y=0;
-  degArr.forEach(d=>{const r=d*Math.PI/180;x+=Math.cos(r);y+=Math.sin(r);});
+  let x=0,y=0;degArr.forEach(d=>{const r=d*Math.PI/180;x+=Math.cos(r);y+=Math.sin(r);});
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
@@ -224,7 +223,7 @@ function setFrame(idx){
 function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
-  labelTxt.innerText = ""; // pas de label pour la synthèse
+  labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
 }
@@ -256,14 +255,17 @@ const refresh = (mode) => {
 
   grouped = groupBy(filtered, gtype);
 
+  // Always compute slider bounds
+  slider.max = Math.max(0, grouped.length - 1);
+  slider.value = slider.max;
+
   const canSlide = grouped.length > 1 && modeDynamic.checked;
   slider.disabled = !canSlide;
   slider.classList.toggle('disabled', !canSlide);
   playerControls.classList.toggle('hidden', !canSlide);
 
   if (modeDynamic.checked && canSlide) {
-    const lastIndex = Math.max(0, grouped.length - 1);
-    setFrame(lastIndex);
+    setFrame(slider.value);
   } else {
     pause();
     showSynthesis();
@@ -277,10 +279,13 @@ modeDynamic.onchange = () => {
   slider.classList.toggle('disabled', !canSlide);
   playerControls.classList.toggle('hidden', !canSlide);
 
-  if (!canSlide) {
+  if (!modeDynamic.checked) {
     pause();
     showSynthesis();
   } else {
+    // ensure slider bounds correct
+    slider.max = Math.max(0, grouped.length - 1);
+    if (+slider.value > +slider.max) slider.value = slider.max;
     setFrame(+slider.value || 0);
   }
 };
@@ -290,6 +295,7 @@ slider.oninput = () => setFrame(+slider.value);
 // ==================== Player ====================
 function play(){
   if(isPlaying) return;
+  if(grouped.length <= 1){ return; } // nothing to play
   isPlaying = true;
   btnPlayPause.textContent = '❚❚';
   playTimer = setInterval(()=>{
@@ -354,7 +360,7 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
       };
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
 
-    refresh('today'); // première vue = synthèse par défaut
+    refresh('today'); // Synthèse par défaut
   });
 </script>
 </body>
