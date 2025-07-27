@@ -2,367 +2,134 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Carte ATEMAX – AutoPlay + Synthèse OK</title>
+  <title>Démo particules de vent (Leaflet + Canvas)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <!-- Flatpickr -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
   <style>
-    html, body, #map { height: 100%; margin: 0; font-family: sans-serif; }
-    #new-signal {
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-      background: white; padding: 6px 12px; border-radius: 8px;
-      font-weight: bold; font-size: 14px; z-index: 1001;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2); text-decoration: none; color: black;
+    html, body, #map { height: 100%; margin:0; }
+    .ctrl {
+      position:absolute; top:10px; left:10px; z-index:1000;
+      background:white; padding:6px 10px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.25);
+      font-family:sans-serif; font-size:13px;
     }
-    #controls {
-      max-width: 92vw;
-      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-      background: white; padding: 6px 10px; border-radius: 10px;
-      font-size: 13px; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
-    }
-    label, select, input[type="checkbox"], input[type="range"], span { font-size: 13px; }
-    input[type="range"] { width: 140px; transition: opacity 0.3s ease; }
-    input[type="range"].disabled { opacity: 0.3; pointer-events: none; }
-    .hidden { display: none !important; }
-    .flatpickr-calendar { z-index: 3000 !important; }
-
-    /* Player */
-    #playerControls { display:flex; align-items:center; gap:6px; }
-    #btnPlayPause{
-      width:32px;height:32px;border:none;border-radius:50%;cursor:pointer;
-      box-shadow:0 1px 3px rgba(0,0,0,.3);background:#E74C3C;color:#fff;font-size:16px;line-height:32px;padding:0;
-      display:flex;align-items:center;justify-content:center;font-weight:bold;
-    }
-    #speedSelect{ border:1px solid #ccc; border-radius:6px; padding:2px 4px; }
-
-    /* Icône vent */
-    .wind-icon svg { width:120px; height:120px; opacity:0.6; }
-    .wind-speed{
-      background:rgba(255,255,255,.85);
-      padding:3px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);
-      font-weight:bold;text-align:center;margin-top:4px;
-    }
-
-    @media (max-width: 600px) {
-      #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
-      input[type="range"] { width: 100px; }
-    }
+    .ctrl input { width:60px; }
+    canvas.wind-canvas { pointer-events:none; } /* ne bloque pas les clics sur la carte */
   </style>
 </head>
 <body>
-<a href="index.html" id="new-signal">➕ Faire un nouveau signalement</a>
 <div id="map"></div>
-
-<div id="controls">
-  <div style="display:flex; align-items:center;">
-    <span style="margin-right:4px;">📅</span>
-    <select id="preset">
-      <option value="today">Aujourd’hui</option>
-      <option value="yesterday">Hier</option>
-      <option value="last7">7 derniers jours</option>
-      <option value="last30">30 derniers jours</option>
-      <option value="custom">Période personnalisée</option>
-      <option value="single">Choisir une date</option>
-    </select>
-  </div>
-  <input id="customRange" type="text" class="hidden" placeholder="Date début - fin" readonly />
-  <input id="singleDate" type="text" class="hidden" placeholder="Choisir une date" readonly />
-
-  <!-- Par défaut décoché pour afficher la synthèse -->
-  <label><input type="checkbox" id="modeDynamic" /> Évolution dynamique</label>
-
-  <div style="display:flex; align-items:center; gap:6px;">
-    <span style="margin-right:4px;">⏱️</span>
-    <input type="range" id="slider" min="0" max="0" value="0" class="disabled" disabled />
-  </div>
-  <span id="sliderLabel"></span>
-
-  <!-- Player auto play/pause -->
-  <div id="playerControls" class="hidden">
-    <button id="btnPlayPause" title="Lecture/Pause">▶</button>
-    <select id="speedSelect" title="Vitesse">
-      <option value="1000">x1</option>
-      <option value="500">x2</option>
-      <option value="250">x4</option>
-    </select>
-    <label style="display:flex; align-items:center; gap:3px;">
-      <input type="checkbox" id="loop" checked /> Répéter
-    </label>
-  </div>
+<div class="ctrl">
+  Dir° <input id="dir" type="number" value="315"> | V(km/h) <input id="spd" type="number" value="15">
+  <button id="apply">Appliquer</button>
 </div>
 
-<!-- Libs -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
-
 <script>
-// ==================== Helpers ====================
-function parseFrDate(str){
-  const [d,m,rest]=str.split('/');
-  if(!rest) return new Date(str);
-  const [y,time='00:00:00']=rest.split(' ');
-  const [hh,mm,ss]=time.split(':');
-  return new Date(+y,+m-1,+d,+(hh||0),+(mm||0),+(ss||0));
-}
-function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:NaN;}
-function avgDir(degArr){
-  if(!degArr.length) return NaN;
-  let x=0,y=0;degArr.forEach(d=>{const r=d*Math.PI/180;x+=Math.cos(r);y+=Math.sin(r);});
-  return (Math.atan2(y,x)*180/Math.PI+360)%360;
-}
-function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
-
-// ==================== Map ====================
+// ---------- Carte ----------
+const USINE = [44.212805, 0.597916];
 const map = L.map('map').setView([44.214, 0.606], 14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
+L.marker(USINE, { icon: L.divIcon({html:'<div style="font-size:36px;">🏭</div>',iconSize:[36,36]})}).addTo(map);
 
-const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
-L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
+// ---------- Layer Canvas particules ----------
+const canvas = document.createElement('canvas');
+canvas.className = 'wind-canvas';
+map.getPanes().overlayPane.appendChild(canvas);
+const ctx = canvas.getContext('2d');
 
-const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E"][Math.min(9, Math.max(0, i-1))];
+let particles = [];
+let dirRad = 315 * Math.PI/180; // direction en radians
+let speedPx = 0.5; // vitesse en px/frame
+const NUM = 300;   // nombre de particules
+const spawnRadiusMeters = 250; // rayon d'émission autour de l'usine
 
-// ---------------- Vent -----------------
-const USINE = [44.212805, 0.597916];
-function offsetLatLng(lat, lon, dxMeters, dyMeters){
+function resizeCanvas(){
+  const size = map.getSize();
+  canvas.width = size.x;
+  canvas.height = size.y;
+}
+resizeCanvas();
+map.on('resize', resizeCanvas);
+map.on('moveend zoomend', ()=>{ // recalculer positions pixel
+  particles.forEach(p => {
+    const ll = L.latLng(p.lat, p.lng);
+    const pt = map.latLngToContainerPoint(ll);
+    p.x = pt.x; p.y = pt.y;
+  });
+});
+
+// conversion simple m -> deg
+function offsetLatLng(lat, lon, dxMeters, dyMeters) {
   const dLat = dyMeters / 111320;
   const dLon = dxMeters / (111320 * Math.cos(lat * Math.PI / 180));
   return [lat + dLat, lon + dLon];
 }
-const WIND_POS = offsetLatLng(USINE[0], USINE[1], 200, 0);
-let windMarker = null;
-function makeWindIcon(dirDeg, speedKmh){
-  const svg = `<svg viewBox='0 0 100 100' style='transform: rotate(${dirDeg}deg);'>
-    <path d='M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z' fill='black' fill-opacity='0.6' stroke='white' stroke-width='4' stroke-linejoin='round'/>
-  </svg>`;
-  const html = `<div class='wind-icon'>${svg}<div class='wind-speed'>${isNaN(speedKmh)?'?':speedKmh+' km/h'}</div></div>`;
-  return L.divIcon({ html, className:'', iconSize:[120,120], iconAnchor:[60,60] });
+
+// spawn une particule aléatoire autour de l’usine
+function spawnParticle(p){
+  const angle = Math.random()*Math.PI*2;
+  const dist = Math.random()*spawnRadiusMeters;
+  const dx = Math.cos(angle)*dist;
+  const dy = Math.sin(angle)*dist;
+  const [lat, lng] = offsetLatLng(USINE[0], USINE[1], dx, dy);
+  const pt = map.latLngToContainerPoint([lat,lng]);
+  p.lat = lat; p.lng = lng; p.x = pt.x; p.y = pt.y;
+  p.alpha = 0.4 + Math.random()*0.6;
+  p.size = 1 + Math.random()*1.5;
 }
-function updateWindMarker(dir, speed){
-  if(!windMarker){
-    windMarker = L.marker(WIND_POS, { icon: makeWindIcon(dir, speed), interactive:false }).addTo(map);
-  } else {
-    windMarker.setIcon(makeWindIcon(dir, speed));
+
+function createParticles(){
+  particles = [];
+  for(let i=0;i<NUM;i++){
+    const p = {};
+    spawnParticle(p);
+    particles.push(p);
   }
 }
+createParticles();
 
-// ==================== State ====================
-let allData = [], grouped = [], labels = [], windMeta = [];
-const slider = document.getElementById('slider');
-const labelTxt = document.getElementById('sliderLabel');
-const modeDynamic = document.getElementById('modeDynamic');
-const preset = document.getElementById('preset');
-const customInput = document.getElementById('customRange');
-const singleInput = document.getElementById('singleDate');
+// animation
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
 
-const btnPlayPause = document.getElementById('btnPlayPause');
-const speedSelect = document.getElementById('speedSelect');
-const loopCheckbox = document.getElementById('loop');
-const playerControls = document.getElementById('playerControls');
+  const vx = Math.cos(dirRad) * speedPx;
+  const vy = Math.sin(dirRad) * speedPx;
 
-let isPlaying = false;
-let playTimer = null;
-let frameDelay = 1000; // ms
+  particles.forEach(p=>{
+    // trail
+    ctx.globalAlpha = p.alpha;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
 
-// ==================== Map update ====================
-const updateMap = (points) => {
-  if (window.layer) map.removeLayer(window.layer);
-  window.layer = L.layerGroup(points.map(p =>
-    L.circle([p.lat, p.lon], {
-      color: getColor(p.intensite),
-      fillColor: getColor(p.intensite),
-      fillOpacity: 0.6,
-      radius: 60
-    }).bindPopup(`<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.dateStr}`)
-  )).addTo(map);
-};
+    p.x += vx;
+    p.y += vy;
 
-// ==================== Wind calc ====================
-function windFromArray(arr){
-  const dirs = arr.map(p=>p.windDir).filter(v=>!isNaN(v));
-  const speeds = arr.map(p=>p.windSpeed).filter(v=>!isNaN(v));
-  return { dir: dirs.length?avgDir(dirs):NaN, speed: speeds.length?Math.round(avg(speeds)):NaN };
-}
-
-// ==================== Grouping ====================
-const groupBy = (data, interval) => {
-  const g = {};
-  data.forEach(row => {
-    const d = new Date(row.dateObj);
-    if (interval === '10min') { d.setSeconds(0,0); d.setMinutes(Math.floor(d.getMinutes()/10)*10); }
-    else if (interval === 'hour') { d.setMinutes(0,0,0); }
-    else if (interval === 'day') { d.setHours(0,0,0,0); }
-    const key = d.toISOString();
-    (g[key] ||= []).push(row);
-    });
-  const keys = Object.keys(g).sort();
-  labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
-
-  windMeta = keys.map(k => windFromArray(g[k]));
-  return keys.map(k => g[k]);
-};
-
-// ==================== Frame setter ====================
-function setFrame(idx){
-  idx = Math.max(0, Math.min(idx, grouped.length-1));
-  slider.value = idx;
-  updateMap(grouped[idx] || []);
-  labelTxt.innerText = labels[idx] || '';
-  const wm = windMeta[idx] || {dir:NaN, speed:NaN};
-  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
-}
-
-// ==================== Synthesis view ====================
-function showSynthesis(){
-  const flat = grouped.flat();
-  updateMap(flat);
-  labelTxt.innerText = '';
-  const wm = windFromArray(flat);
-  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
-}
-
-// ==================== Refresh (filter + regroup) ====================
-const refresh = (mode) => {
-  let gtype = 'day';
-  const today = new Date();
-
-  if (mode === 'today' || mode === 'yesterday' || mode === 'single') gtype = '10min';
-  else if (mode === 'last7')  gtype = 'hour';
-  else if (mode === 'last30') gtype = 'day';
-  else if (mode === 'custom') {
-    const sel = fpRange.selectedDates;
-    const diff = (sel[1] - sel[0]) / 86400000;
-    gtype = diff <= 1 ? '10min' : diff <= 7 ? 'hour' : 'day';
-  }
-
-  const filtered = allData.filter(d => {
-    const date = d.dateObj;
-    if (mode === 'today')     return date.toDateString() === today.toDateString();
-    if (mode === 'yesterday'){ const y = new Date(today); y.setDate(y.getDate()-1); return date.toDateString() === y.toDateString(); }
-    if (mode === 'last7')     { const d7 = new Date(today); d7.setDate(d7.getDate()-7);  return date >= d7; }
-    if (mode === 'last30')    { const d30 = new Date(today); d30.setDate(d30.getDate()-30); return date >= d30; }
-    if (mode === 'single')    { const sel = fpSingle.selectedDates[0]; return sel && date.toDateString() === sel.toDateString(); }
-    if (mode === 'custom')    { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && date <= d2; }
-    return true;
-  });
-
-  grouped = groupBy(filtered, gtype);
-
-  // Always compute slider bounds
-  slider.max = Math.max(0, grouped.length - 1);
-  slider.value = slider.max;
-
-  const canSlide = grouped.length > 1 && modeDynamic.checked;
-  slider.disabled = !canSlide;
-  slider.classList.toggle('disabled', !canSlide);
-  playerControls.classList.toggle('hidden', !canSlide);
-
-  if (modeDynamic.checked && canSlide) {
-    setFrame(slider.value);
-    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
-  } else {
-    pause();
-    showSynthesis();
-  }
-};
-
-// ==================== Slider & Mode ====================
-modeDynamic.onchange = () => {
-  const canSlide = modeDynamic.checked && grouped.length > 1;
-  slider.disabled = !canSlide;
-  slider.classList.toggle('disabled', !canSlide);
-  playerControls.classList.toggle('hidden', !canSlide);
-
-  if (!modeDynamic.checked) {
-    pause();
-    showSynthesis();
-  } else {
-    slider.max = Math.max(0, grouped.length - 1);
-    if (+slider.value > +slider.max) slider.value = slider.max;
-    setFrame(+slider.value || 0);
-    play(); // Lecture auto à l’activation
-  }
-};
-
-slider.oninput = () => setFrame(+slider.value);
-
-// ==================== Player ====================
-function play(){
-  if(isPlaying) return;
-  if(grouped.length <= 1){ return; }
-  isPlaying = true;
-  btnPlayPause.textContent = '❚❚';
-  playTimer = setInterval(()=>{
-    let i = +slider.value + 1;
-    if(i > +slider.max){
-      if(loopCheckbox.checked){ i = 0; }
-      else { pause(); return; }
+    // si la particule sort de l'écran -> respawn
+    if (p.x<0 || p.y<0 || p.x>canvas.width || p.y>canvas.height){
+      spawnParticle(p);
     }
-    setFrame(i);
-  }, frameDelay);
-}
-function pause(){
-  isPlaying = false;
-  btnPlayPause.textContent = '▶';
-  if(playTimer) clearInterval(playTimer);
-  playTimer = null;
-}
-btnPlayPause.onclick = ()=>{ isPlaying ? pause() : play(); };
-speedSelect.onchange = e => {
-  frameDelay = +e.target.value;
-  if(isPlaying){ pause(); play(); }
-};
-
-// ==================== Flatpickr ====================
-flatpickr.setDefaults({ locale:"fr" });
-const fpRange = flatpickr("#customRange", {
-  mode: "range", dateFormat: "d/m/Y",
-  onClose: () => refresh("custom")
-});
-const fpSingle = flatpickr("#singleDate", {
-  dateFormat: "d/m/Y",
-  onClose: () => refresh("single")
-});
-
-preset.onchange = e => {
-  const val = e.target.value;
-  const showCustom = val === 'custom';
-  const showSingle = val === 'single';
-  customInput.classList.toggle('hidden', !showCustom);
-  singleInput.classList.toggle('hidden', !showSingle);
-  if (showCustom)      setTimeout(()=>fpRange.open(),0);
-  else if (showSingle) setTimeout(()=>fpSingle.open(),0);
-  else                 refresh(val);
-};
-
-// ==================== Load data (Google Sheets) ====================
-fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201")
-  .then(res=>res.json())
-  .then(rows=>{
-    allData = rows.map(r=>{
-      const dateStr = r["Date/heure"];
-      const dateObj = parseFrDate(dateStr);
-      return {
-        lat: numVal(r["Latitude"]),
-        lon: numVal(r["Longitude"]),
-        intensite: parseInt(r["Intensité"],10),
-        type: r["Type d’odeur"],
-        commentaire: r["Commentaire"],
-        dateStr, dateObj,
-        windSpeed: numVal(r["Vent (km/h)"]),
-        windDir:   numVal(r["Direction vent (°)"])
-      };
-    }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
-
-    refresh('today'); // Synthèse par défaut
   });
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+// set wind from UI
+function setWind(dirDeg, speedKmh){
+  dirRad = dirDeg * Math.PI/180;
+  // convert km/h to px/frame (très arbitraire pour la démo)
+  speedPx = Math.max(0.1, speedKmh/40);
+}
+document.getElementById('apply').onclick = ()=>{
+  const d = +document.getElementById('dir').value;
+  const s = +document.getElementById('spd').value;
+  setWind(d, s);
+};
 </script>
 </body>
 </html>
