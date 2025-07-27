@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Carte ATEMAX – Démo AutoPlay Timeline</title>
+  <title>Carte ATEMAX – AutoPlay + Synthèse correcte</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Leaflet -->
@@ -33,19 +33,19 @@
 
     /* Player */
     #playerControls { display:flex; align-items:center; gap:6px; }
-    #btnPlayPause {
-      width:32px; height:32px; border:none; border-radius:50%; cursor:pointer;
-      box-shadow: 0 1px 3px rgba(0,0,0,.3); background:#E74C3C; color:#fff; font-size:16px; line-height:32px; padding:0;
-      display:flex; align-items:center; justify-content:center; font-weight:bold;
+    #btnPlayPause{
+      width:32px;height:32px;border:none;border-radius:50%;cursor:pointer;
+      box-shadow:0 1px 3px rgba(0,0,0,.3);background:#E74C3C;color:#fff;font-size:16px;line-height:32px;padding:0;
+      display:flex;align-items:center;justify-content:center;font-weight:bold;
     }
-    #speedSelect { border:1px solid #ccc; border-radius:6px; padding:2px 4px; }
+    #speedSelect{ border:1px solid #ccc; border-radius:6px; padding:2px 4px; }
 
     /* Icône vent */
-    .wind-icon svg { width: 120px; height: 120px; opacity: 0.6; }
-    .wind-speed {
-      background: rgba(255,255,255,.85);
-      padding: 3px 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.25);
-      font-weight: bold; text-align: center; margin-top: 4px;
+    .wind-icon svg { width:120px; height:120px; opacity:0.6; }
+    .wind-speed{
+      background:rgba(255,255,255,.85);
+      padding:3px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);
+      font-weight:bold;text-align:center;margin-top:4px;
     }
 
     @media (max-width: 600px) {
@@ -73,16 +73,17 @@
   <input id="customRange" type="text" class="hidden" placeholder="Date début - fin" readonly />
   <input id="singleDate" type="text" class="hidden" placeholder="Choisir une date" readonly />
 
-  <label><input type="checkbox" id="modeDynamic" checked /> Évolution dynamique</label>
+  <!-- Par défaut décoché -->
+  <label><input type="checkbox" id="modeDynamic" /> Évolution dynamique</label>
 
   <div style="display:flex; align-items:center; gap:6px;">
     <span style="margin-right:4px;">⏱️</span>
-    <input type="range" id="slider" min="0" max="0" value="0" />
+    <input type="range" id="slider" min="0" max="0" value="0" class="disabled" disabled />
   </div>
-  <span id="sliderLabel">00:00</span>
+  <span id="sliderLabel"></span>
 
   <!-- Player auto play/pause -->
-  <div id="playerControls">
+  <div id="playerControls" class="hidden">
     <button id="btnPlayPause" title="Lecture/Pause">▶</button>
     <select id="speedSelect" title="Vitesse">
       <option value="1000">x1</option>
@@ -112,7 +113,8 @@ function parseFrDate(str){
 function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:NaN;}
 function avgDir(degArr){
   if(!degArr.length) return NaN;
-  let x=0,y=0;degArr.forEach(d=>{const r=d*Math.PI/180;x+=Math.cos(r);y+=Math.sin(r);});
+  let x=0,y=0;
+  degArr.forEach(d=>{const r=d*Math.PI/180;x+=Math.cos(r);y+=Math.sin(r);});
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
@@ -161,13 +163,14 @@ const preset = document.getElementById('preset');
 const customInput = document.getElementById('customRange');
 const singleInput = document.getElementById('singleDate');
 
-// Player state
-let isPlaying = false;
-let playTimer = null;
-let frameDelay = 1000; // default
 const btnPlayPause = document.getElementById('btnPlayPause');
 const speedSelect = document.getElementById('speedSelect');
 const loopCheckbox = document.getElementById('loop');
+const playerControls = document.getElementById('playerControls');
+
+let isPlaying = false;
+let playTimer = null;
+let frameDelay = 1000; // ms
 
 // ==================== Map update ====================
 const updateMap = (points) => {
@@ -181,6 +184,13 @@ const updateMap = (points) => {
     }).bindPopup(`<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.dateStr}`)
   )).addTo(map);
 };
+
+// ==================== Wind calc ====================
+function windFromArray(arr){
+  const dirs = arr.map(p=>p.windDir).filter(v=>!isNaN(v));
+  const speeds = arr.map(p=>p.windSpeed).filter(v=>!isNaN(v));
+  return { dir: dirs.length?avgDir(dirs):NaN, speed: speeds.length?Math.round(avg(speeds)):NaN };
+}
 
 // ==================== Grouping ====================
 const groupBy = (data, interval) => {
@@ -196,21 +206,30 @@ const groupBy = (data, interval) => {
   const keys = Object.keys(g).sort();
   labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
 
-  // Vent meta par tranche
-  windMeta = keys.map(k => {
-    const arr = g[k];
-    const dirs = arr.map(r=>r.windDir).filter(v=>!isNaN(v));
-    const speeds = arr.map(r=>r.windSpeed).filter(v=>!isNaN(v));
-    return {
-      dir: dirs.length?avgDir(dirs):NaN,
-      speed: speeds.length?Math.round(avg(speeds)):NaN
-    };
-  });
-
+  windMeta = keys.map(k => windFromArray(g[k]));
   return keys.map(k => g[k]);
 };
 
-// ==================== Refresh ====================
+// ==================== Frame setter ====================
+function setFrame(idx){
+  idx = Math.max(0, Math.min(idx, grouped.length-1));
+  slider.value = idx;
+  updateMap(grouped[idx] || []);
+  labelTxt.innerText = labels[idx] || '';
+  const wm = windMeta[idx] || {dir:NaN, speed:NaN};
+  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+}
+
+// ==================== Synthesis view ====================
+function showSynthesis(){
+  const flat = grouped.flat();
+  updateMap(flat);
+  labelTxt.innerText = ""; // pas de label pour la synthèse
+  const wm = windFromArray(flat);
+  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+}
+
+// ==================== Refresh (filter + regroup) ====================
 const refresh = (mode) => {
   let gtype = 'day';
   const today = new Date();
@@ -240,33 +259,33 @@ const refresh = (mode) => {
   const canSlide = grouped.length > 1 && modeDynamic.checked;
   slider.disabled = !canSlide;
   slider.classList.toggle('disabled', !canSlide);
-  slider.max = Math.max(0, grouped.length - 1);
+  playerControls.classList.toggle('hidden', !canSlide);
 
-  const lastIndex = Math.max(0, grouped.length - 1);
-  slider.value = lastIndex;
-  setFrame(lastIndex);
+  if (modeDynamic.checked && canSlide) {
+    const lastIndex = Math.max(0, grouped.length - 1);
+    setFrame(lastIndex);
+  } else {
+    pause();
+    showSynthesis();
+  }
 };
-
-// ==================== Frame setter ====================
-function setFrame(idx){
-  idx = Math.max(0, Math.min(idx, grouped.length-1));
-  slider.value = idx;
-  updateMap(grouped[idx] || []);
-  labelTxt.innerText = labels[idx] || '';
-  const wm = windMeta[idx] || {dir:NaN, speed:NaN};
-  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
-}
 
 // ==================== Slider & Mode ====================
 modeDynamic.onchange = () => {
   const canSlide = modeDynamic.checked && grouped.length > 1;
   slider.disabled = !canSlide;
   slider.classList.toggle('disabled', !canSlide);
-  if(!canSlide) pause(); // pas de lecture si curseur inactif
-  if(canSlide) setFrame(slider.value);
+  playerControls.classList.toggle('hidden', !canSlide);
+
+  if (!canSlide) {
+    pause();
+    showSynthesis();
+  } else {
+    setFrame(+slider.value || 0);
+  }
 };
 
-slider.oninput = () => { setFrame(+slider.value); };
+slider.oninput = () => setFrame(+slider.value);
 
 // ==================== Player ====================
 function play(){
@@ -289,7 +308,10 @@ function pause(){
   playTimer = null;
 }
 btnPlayPause.onclick = ()=>{ isPlaying ? pause() : play(); };
-speedSelect.onchange = (e)=>{ frameDelay = +e.target.value; if(isPlaying){ pause(); play(); } };
+speedSelect.onchange = e => {
+  frameDelay = +e.target.value;
+  if(isPlaying){ pause(); play(); }
+};
 
 // ==================== Flatpickr ====================
 flatpickr.setDefaults({ locale:"fr" });
@@ -308,9 +330,9 @@ preset.onchange = e => {
   const showSingle = val === 'single';
   customInput.classList.toggle('hidden', !showCustom);
   singleInput.classList.toggle('hidden', !showSingle);
-  if (showCustom) setTimeout(()=>fpRange.open(),0);
+  if (showCustom)      setTimeout(()=>fpRange.open(),0);
   else if (showSingle) setTimeout(()=>fpSingle.open(),0);
-  else refresh(val);
+  else                 refresh(val);
 };
 
 // ==================== Load data (Google Sheets) ====================
@@ -328,12 +350,11 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
         commentaire: r["Commentaire"],
         dateStr, dateObj,
         windSpeed: numVal(r["Vent (km/h)"]),
-        windDir: numVal(r["Direction vent (°)"])
+        windDir:   numVal(r["Direction vent (°)"])
       };
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
-    refresh('today');
-    // Auto start if dynamic
-    if(modeDynamic.checked) play();
+
+    refresh('today'); // première vue = synthèse par défaut
   });
 </script>
 </body>
