@@ -228,7 +228,8 @@ const PART_TOTAL_MAX = 225; // densité inchangée
 function initParticlesCanvas(){
   pCanvas = document.createElement('canvas');
   pCanvas.className = 'particle-canvas';
-  map.getContainer().appendChild(pCanvas); // fixé au container, pas au pane
+  map.getPanes().overlayPane.appendChild(pCanvas);
+ // fixé au container, pas au pane
   pCtx = pCanvas.getContext('2d');
 
   function resize(){
