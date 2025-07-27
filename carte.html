@@ -25,7 +25,7 @@
       font-size: 13px; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
       display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
     }
-    label, select, input[type="checkbox"], input[type="range"], span { font-size: 13px; }
+    label, select, input[type="checkbox"}, input[type="range"], span { font-size: 13px; }
     input[type="range"] { width: 140px; transition: opacity 0.3s ease; }
     input[type="range"].disabled { opacity: 0.3; pointer-events: none; }
     .hidden { display: none !important; }
@@ -226,7 +226,7 @@ function showSynthesis(){
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
-  setParticlesPoints(flat); // === PARTICULES === uniquement ici
+  setParticlesPoints(flat); // === PARTICULES ===
 }
 
 // ==================== Refresh (filter + regroup) ====================
@@ -267,8 +267,8 @@ const refresh = (mode) => {
 
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
-    play(); // si on arrive ici avec la case déjà cochée
-    particlesClear(); // === PARTICULES === on enlève le nuage si on passe en dynamique
+    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
+    particlesClear(); // === PARTICULES === (on enlève le nuage)
   } else {
     pause();
     showSynthesis();
@@ -284,7 +284,7 @@ modeDynamic.onchange = () => {
 
   if (!modeDynamic.checked) {
     pause();
-    showSynthesis(); // remettra le nuage
+    showSynthesis(); // remet le nuage
   } else {
     slider.max = Math.max(0, grouped.length - 1);
     if (+slider.value > +slider.max) slider.value = slider.max;
@@ -368,14 +368,14 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
   });
 
 /* ===================================================================
-   ===============  PARTICULES (nuage noir/gris)  =====================
+   ===============  PARTICULES FUMÉE NOIR/GRIS  =======================
    =================================================================== */
-// === PARTICULES === variables
+// === PARTICULES === vars
 let pCanvas, pCtx, particles = [], segs = [];
 let pAnimId = null;
 const PART_TOTAL_MAX = 600;
 
-// === PARTICULES === init canvas overlay
+// === PARTICULES === init
 function initParticlesCanvas(){
   pCanvas = document.createElement('canvas');
   pCanvas.className = 'particle-canvas';
@@ -394,10 +394,7 @@ function initParticlesCanvas(){
   }
   resize();
   map.on('resize', resize);
-  map.on('moveend zoomend', () => {
-    resize();
-    updateSegPixels();
-  });
+  map.on('moveend zoomend', ()=>{ resize(); updateSegPixels(); });
 }
 
 // segments usine -> point
@@ -426,11 +423,13 @@ function spawnParticle(p){
   const idx = Math.floor(Math.random()*segs.length);
   const s = segs[idx];
   p.seg = idx;
-  p.t = Math.random()*0.1;             // proche du départ
-  p.size = 6 + Math.random()*18;       // plus large que la version point
-  p.alpha = 0.15 + Math.random()*0.25; // fumée légère
-  p.speed = 0.0025 + Math.random()*0.0035;
-  p.gray  = 40 + Math.floor(Math.random()*60); // nuance gris foncé
+  p.t = Math.random()*0.1;               // départ proche usine
+  p.size = 8 + Math.random()*22;         // gros nuage
+  p.alpha = 0.12 + Math.random()*0.28;   // fumée légère
+  p.speed = 0.002 + Math.random()*0.003; // vitesse
+  p.gray  = 30 + Math.floor(Math.random()*80); // gris foncé
+  p.phi   = Math.random()*Math.PI*2;     // phase jitter
+  p.jit   = 0.12 + Math.random()*0.25;   // amplitude jitter latéral
 }
 
 function particlesClear(){
@@ -446,14 +445,12 @@ function particlesClear(){
 }
 
 function setParticlesPoints(points){
-  // On ne dessine QUE si mode dynamique est décoché
-  if(modeDynamic.checked){
+  if(modeDynamic.checked){ // uniquement synthèse
     particlesClear();
     return;
   }
 
   if(!pCtx) initParticlesCanvas();
-
   if(!points || !points.length){
     particlesClear();
     return;
@@ -478,21 +475,27 @@ function setParticlesPoints(points){
 function animateParticles(){
   pAnimId = requestAnimationFrame(animateParticles);
   if(!pCtx) return;
-
   pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
 
   particles.forEach(p=>{
     const s = segs[p.seg];
     if(!s){ spawnParticle(p); return; }
 
-    const x = s.sPx.x + s.vx * p.t;
-    const y = s.sPx.y + s.vy * p.t;
+    // position le long du segment
+    const xBase = s.sPx.x + s.vx * p.t;
+    const yBase = s.sPx.y + s.vy * p.t;
 
-    // Nuage type démo : dégradé radial noir -> transparent
+    // jitter latéral pour la forme “nuage”
+    const nx = -s.vy / s.len;
+    const ny =  s.vx / s.len;
+    const jitter = Math.sin(p.t*8 + p.phi) * p.jit * s.len * 0.02; // 2% de la longueur
+    const x = xBase + nx * jitter;
+    const y = yBase + ny * jitter;
+
+    // gradient radial noir/gris
     const g = pCtx.createRadialGradient(x, y, 0, x, y, p.size);
-    const alpha = p.alpha;
     const c = p.gray;
-    g.addColorStop(0, `rgba(${c},${c},${c},${alpha})`);
+    g.addColorStop(0, `rgba(${c},${c},${c},${p.alpha})`);
     g.addColorStop(1, `rgba(${c},${c},${c},0)`);
 
     pCtx.fillStyle = g;
