@@ -152,17 +152,11 @@ function makeWindIcon(dirDeg, speedKmh){
 }
 function updateWindMarker(dir, speed){
   if(!windMarker){
-    windMarker = L.marker(WIND_POS, {
-      icon: makeWindIcon(dir, speed),
-      interactive: false,
-      zIndexOffset: 10000 // ✅ flèche au-dessus de la fumée
-    }).addTo(map);
+    windMarker = L.marker(WIND_POS, { icon: makeWindIcon(dir, speed), interactive:false }).addTo(map);
   } else {
     windMarker.setIcon(makeWindIcon(dir, speed));
-    windMarker.setZIndexOffset(10000); // ✅ en cas de mise à jour
   }
 }
-
 
 // ==================== State ====================
 let allData = [], grouped = [], labels = [], windMeta = [];
@@ -223,13 +217,12 @@ const groupBy = (data, interval) => {
 // ==================== PARTICULES “FUMÉE” KAKI (subtile, largeur x2) ====================
 let pCanvas, pCtx, particles = [], segs = [];
 let pAnimId = null;
-const PART_TOTAL_MAX = 225; // densité inchangée
+const PART_TOTAL_MAX = 450; // densité inchangée
 
 function initParticlesCanvas(){
   pCanvas = document.createElement('canvas');
   pCanvas.className = 'particle-canvas';
-  map.getPanes().overlayPane.appendChild(pCanvas);
- // fixé au container, pas au pane
+  map.getContainer().appendChild(pCanvas); // fixé au container, pas au pane
   pCtx = pCanvas.getContext('2d');
 
   function resize(){
@@ -276,7 +269,7 @@ function setParticlesPoints(points){
 
   buildSegments(points);
 
-  const target = Math.min(PART_TOTAL_MAX, segs.length * 20);
+  const target = Math.min(PART_TOTAL_MAX, segs.length * 40);
   if(particles.length < target){
     for(let i = particles.length; i < target; i++){
       const p = {};
