@@ -40,17 +40,22 @@
     }
     #speedSelect{ border:1px solid #ccc; border-radius:6px; padding:2px 4px; }
 
-    /* Icône vent */
-    .wind-icon svg { width:120px; height:120px; opacity:0.6; }
+    /* Icône vent – taille divisée par 2 */
+    .wind-icon svg { width:60px; height:60px; opacity:0.6; }
     .wind-speed{
       background:rgba(255,255,255,.85);
       padding:3px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);
-      font-weight:bold;text-align:center;margin-top:4px;
+      font-weight:bold;text-align:center;margin-top:4px; font-size:11px;
     }
 
     @media (max-width: 600px) {
       #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
       input[type="range"] { width: 100px; }
+    }
+
+    /* Canvas particules */
+    canvas.particle-canvas {
+      position:absolute; top:0; left:0; pointer-events:none; z-index: 500; /* sous les contrôles */
     }
   </style>
 </head>
@@ -143,7 +148,7 @@ function makeWindIcon(dirDeg, speedKmh){
     <path d='M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z' fill='black' fill-opacity='0.6' stroke='white' stroke-width='4' stroke-linejoin='round'/>
   </svg>`;
   const html = `<div class='wind-icon'>${svg}<div class='wind-speed'>${isNaN(speedKmh)?'?':speedKmh+' km/h'}</div></div>`;
-  return L.divIcon({ html, className:'', iconSize:[120,120], iconAnchor:[60,60] });
+  return L.divIcon({ html, className:'', iconSize:[60,60], iconAnchor:[30,30] }); // ← taille /2
 }
 function updateWindMarker(dir, speed){
   if(!windMarker){
@@ -201,13 +206,124 @@ const groupBy = (data, interval) => {
     else if (interval === 'day') { d.setHours(0,0,0,0); }
     const key = d.toISOString();
     (g[key] ||= []).push(row);
-  });
+    });
   const keys = Object.keys(g).sort();
   labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
 
   windMeta = keys.map(k => windFromArray(g[k]));
   return keys.map(k => g[k]);
 };
+
+// ==================== PARTICULES “FUMÉE” KAKI (subtile, largeur x2) ====================
+let pCanvas, pCtx, particles = [], segs = [];
+let pAnimId = null;
+const PART_TOTAL_MAX = 450; // densité inchangée
+
+function initParticlesCanvas(){
+  pCanvas = document.createElement('canvas');
+  pCanvas.className = 'particle-canvas';
+  map.getContainer().appendChild(pCanvas); // fixé au container, pas au pane
+  pCtx = pCanvas.getContext('2d');
+
+  function resize(){
+    const size = map.getSize();
+    pCanvas.width  = size.x;
+    pCanvas.height = size.y;
+  }
+  resize();
+  map.on('resize', resize);
+}
+
+function buildSegments(points){
+  segs = points.map(p=>({
+    sLL: L.latLng(USINE[0], USINE[1]),
+    eLL: L.latLng(p.lat, p.lon)
+  }));
+}
+
+function spawnParticle(p){
+  if(!segs.length) return;
+  const idx = Math.floor(Math.random()*segs.length);
+  p.seg   = idx;
+  p.t     = Math.random()*0.1;              // départ proche usine
+  p.size  = 12 + Math.random()*32;           // ×2 par rapport à 6–16
+  p.alpha = 0.03 + Math.random()*0.07;       // très transparent
+  p.speed = 0.0018 + Math.random()*0.0025;
+  p.phi   = Math.random()*Math.PI*2;
+  p.jit   = 0.10 + Math.random()*0.22;
+}
+
+function particlesClear(){
+  particles = [];
+  segs = [];
+  if(pCtx && pCanvas) pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  if(pAnimId){ cancelAnimationFrame(pAnimId); pAnimId = null; }
+}
+
+function setParticlesPoints(points){
+  if(!pCtx) initParticlesCanvas();
+  if(!points || !points.length){
+    particlesClear();
+    return;
+  }
+
+  buildSegments(points);
+
+  const target = Math.min(PART_TOTAL_MAX, segs.length * 40);
+  if(particles.length < target){
+    for(let i = particles.length; i < target; i++){
+      const p = {};
+      spawnParticle(p);
+      particles.push(p);
+    }
+  } else if(particles.length > target){
+    particles.length = target;
+  }
+
+  if(!pAnimId) animateParticles();
+}
+
+function animateParticles(){
+  pAnimId = requestAnimationFrame(animateParticles);
+  if(!pCtx) return;
+
+  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  const base = {r:107,g:142,b:35}; // kaki
+
+  particles.forEach(p=>{
+    const s = segs[p.seg];
+    if(!s){ spawnParticle(p); return; }
+
+    const sPx = map.latLngToContainerPoint(s.sLL);
+    const ePx = map.latLngToContainerPoint(s.eLL);
+    const vx = ePx.x - sPx.x;
+    const vy = ePx.y - sPx.y;
+    const len = Math.sqrt(vx*vx + vy*vy) || 1;
+
+    const xBase = sPx.x + vx * p.t;
+    const yBase = sPx.y + vy * p.t;
+
+    const nx = -vy / len;
+    const ny =  vx / len;
+    const jitter = Math.sin(p.t*8 + p.phi) * p.jit * len * 0.02;
+    const x = xBase + nx * jitter;
+    const y = yBase + ny * jitter;
+
+    const g = pCtx.createRadialGradient(x, y, 0, x, y, p.size);
+    const a = p.alpha;
+    g.addColorStop(0.0, `rgba(${base.r},${base.g},${base.b},${a})`);
+    g.addColorStop(0.4, `rgba(${base.r},${base.g},${base.b},${a*0.35})`);
+    g.addColorStop(1.0, `rgba(${base.r},${base.g},${base.b},0)`);
+
+    pCtx.fillStyle = g;
+    pCtx.beginPath();
+    pCtx.arc(x, y, p.size, 0, Math.PI*2);
+    pCtx.fill();
+
+    p.t += p.speed;
+    if(p.t > 1){ spawnParticle(p); }
+  });
+}
 
 // ==================== Frame setter ====================
 function setFrame(idx){
@@ -218,7 +334,7 @@ function setFrame(idx){
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
 
-  // === PARTICULES ===
+  // Particules pour cette tranche
   setParticlesPoints(grouped[idx] || []);
 }
 
@@ -230,7 +346,6 @@ function showSynthesis(){
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
 
-  // === PARTICULES ===
   setParticlesPoints(flat);
 }
 
@@ -261,7 +376,6 @@ const refresh = (mode) => {
 
   grouped = groupBy(filtered, gtype);
 
-  // Always compute slider bounds
   slider.max = Math.max(0, grouped.length - 1);
   slider.value = slider.max;
 
@@ -272,7 +386,7 @@ const refresh = (mode) => {
 
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
-    play(); // si on arrive ici avec la case déjà cochée (ex. après refresh)
+    play();
   } else {
     pause();
     showSynthesis();
@@ -293,7 +407,7 @@ modeDynamic.onchange = () => {
     slider.max = Math.max(0, grouped.length - 1);
     if (+slider.value > +slider.max) slider.value = slider.max;
     setFrame(+slider.value || 0);
-    play(); // Lecture auto à l’activation
+    play();
   }
 };
 
@@ -353,7 +467,7 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
   .then(res=>res.json())
   .then(rows=>{
     allData = rows.map(r=>{
-      const dateStr = r["Date/heure"];
+      const dateStr = r["Date/heure"]; 
       const dateObj = parseFrDate(dateStr);
       return {
         lat: numVal(r["Latitude"]),
@@ -367,131 +481,8 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
       };
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
 
-    refresh('today'); // Synthèse par défaut
+    refresh('today');
   });
-
-/* ===================================================================
-   ===============  PARTICULES “FUMÉE” KAKI (subtile + fixe) ==========
-   =================================================================== */
-let pCanvas, pCtx, particles = [], segs = [];
-let pAnimId = null;
-const PART_TOTAL_MAX = 450; // densité modérée
-
-function initParticlesCanvas(){
-  pCanvas = document.createElement('canvas');
-  pCanvas.className = 'particle-canvas';
-  pCanvas.style.pointerEvents = 'none';
-  pCanvas.style.position = 'absolute';
-  pCanvas.style.top = 0;
-  pCanvas.style.left = 0;
-  pCanvas.style.zIndex = 650; // au-dessus des tuiles/cercles
-
-  // Canvas sur le container => ne bouge pas au pan/zoom (on recalcule en pixels)
-  map.getContainer().appendChild(pCanvas);
-
-  pCtx = pCanvas.getContext('2d');
-
-  function resize(){
-    const size = map.getSize();
-    pCanvas.width  = size.x;
-    pCanvas.height = size.y;
-  }
-  resize();
-  map.on('resize', resize);
-}
-
-function buildSegments(points){
-  segs = points.map(p=>({
-    sLL: L.latLng(USINE[0], USINE[1]),
-    eLL: L.latLng(p.lat, p.lon)
-  }));
-}
-
-function spawnParticle(p){
-  if(!segs.length) return;
-  const idx = Math.floor(Math.random()*segs.length);
-  p.seg   = idx;
-  p.t     = Math.random()*0.1;
-  p.size  = 6 + Math.random()*16;
-  p.alpha = 0.03 + Math.random()*0.07;     // très transparent
-  p.speed = 0.0018 + Math.random()*0.0025;
-  p.phi   = Math.random()*Math.PI*2;
-  p.jit   = 0.10 + Math.random()*0.22;
-}
-
-function particlesClear(){
-  particles = [];
-  segs = [];
-  if(pCtx && pCanvas) pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
-  if(pAnimId){ cancelAnimationFrame(pAnimId); pAnimId = null; }
-}
-
-function setParticlesPoints(points){
-  if(!pCtx) initParticlesCanvas();
-  if(!points || !points.length){
-    particlesClear();
-    return;
-  }
-
-  buildSegments(points);
-
-  const target = Math.min(PART_TOTAL_MAX, segs.length * 40);
-  if(particles.length < target){
-    for(let i = particles.length; i < target; i++){
-      const p = {};
-      spawnParticle(p);
-      particles.push(p);
-    }
-  } else if(particles.length > target){
-    particles.length = target;
-  }
-
-  if(!pAnimId) animateParticles();
-}
-
-function animateParticles(){
-  pAnimId = requestAnimationFrame(animateParticles);
-  if(!pCtx) return;
-
-  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
-
-  const base = {r:107,g:142,b:35}; // kaki
-
-  particles.forEach(p=>{
-    const s = segs[p.seg];
-    if(!s){ spawnParticle(p); return; }
-
-    const sPx = map.latLngToContainerPoint(s.sLL);
-    const ePx = map.latLngToContainerPoint(s.eLL);
-
-    const vx = ePx.x - sPx.x;
-    const vy = ePx.y - sPx.y;
-    const len = Math.sqrt(vx*vx + vy*vy) || 1;
-
-    const xBase = sPx.x + vx * p.t;
-    const yBase = sPx.y + vy * p.t;
-
-    const nx = -vy / len;
-    const ny =  vx / len;
-    const jitter = Math.sin(p.t*8 + p.phi) * p.jit * len * 0.02;
-    const x = xBase + nx * jitter;
-    const y = yBase + ny * jitter;
-
-    const g = pCtx.createRadialGradient(x, y, 0, x, y, p.size);
-    const a = p.alpha;
-    g.addColorStop(0.0, `rgba(${base.r},${base.g},${base.b},${a})`);
-    g.addColorStop(0.4, `rgba(${base.r},${base.g},${base.b},${a*0.35})`);
-    g.addColorStop(1.0, `rgba(${base.r},${base.g},${base.b},0)`);
-
-    pCtx.fillStyle = g;
-    pCtx.beginPath();
-    pCtx.arc(x, y, p.size, 0, Math.PI*2);
-    pCtx.fill();
-
-    p.t += p.speed;
-    if(p.t > 1){ spawnParticle(p); }
-  });
-}
 </script>
 </body>
 </html>
