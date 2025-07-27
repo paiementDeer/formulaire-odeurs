@@ -217,6 +217,9 @@ function setFrame(idx){
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+
+  // === PARTICULES ===
+  setParticlesPoints(grouped[idx] || []);
 }
 
 // ==================== Synthesis view ====================
@@ -226,6 +229,9 @@ function showSynthesis(){
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+
+  // === PARTICULES ===
+  setParticlesPoints(flat);
 }
 
 // ==================== Refresh (filter + regroup) ====================
@@ -363,7 +369,7 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
 
     refresh('today'); // Synthèse par défaut
   });
-</script>
+
 /* ===================================================================
    ===============  PARTICULES “FUMÉE” KAKI  ==========================
    =================================================================== */
@@ -394,8 +400,7 @@ function initParticlesCanvas(){
 function buildSegments(points){
   segs = points.map(p=>({
     sLL: L.latLng(USINE[0], USINE[1]),
-    eLL: L.latLng(p.lat, p.lon),
-    // pas de cache de pixel ici : on recalcule à chaque frame
+    eLL: L.latLng(p.lat, p.lon)
   }));
 }
 
@@ -403,7 +408,6 @@ function buildSegments(points){
 function spawnParticle(p){
   if(!segs.length) return;
   const idx = Math.floor(Math.random()*segs.length);
-  const s = segs[idx];
   p.seg = idx;
   p.t = Math.random()*0.1;               // démarre près de l’usine
   p.size = 8 + Math.random()*22;         // taille nuage
@@ -450,28 +454,24 @@ function animateParticles(){
   pAnimId = requestAnimationFrame(animateParticles);
   if(!pCtx) return;
 
-  // clear
   pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
 
-  // couleur kaki
-  const base = {r:107,g:142,b:35}; // OliveDrab
+  const base = {r:107,g:142,b:35}; // kaki
 
   particles.forEach(p=>{
     const s = segs[p.seg];
     if(!s){ spawnParticle(p); return; }
 
-    // Recalcul pixel start/end à chaque frame pour suivre le pan/zoom
+    // recalculer à chaque frame pour rester fixé à l'usine/le point malgré le pan/zoom
     const sPx = map.latLngToContainerPoint(s.sLL);
     const ePx = map.latLngToContainerPoint(s.eLL);
     const vx = ePx.x - sPx.x;
     const vy = ePx.y - sPx.y;
     const len = Math.sqrt(vx*vx + vy*vy) || 1;
 
-    // base
     const xBase = sPx.x + vx * p.t;
     const yBase = sPx.y + vy * p.t;
 
-    // jitter latéral
     const nx = -vy / len;
     const ny =  vx / len;
     const jitter = Math.sin(p.t*8 + p.phi) * p.jit * len * 0.02;
@@ -492,7 +492,6 @@ function animateParticles(){
     if(p.t > 1){ spawnParticle(p); }
   });
 }
-
-  
+</script>
 </body>
 </html>
