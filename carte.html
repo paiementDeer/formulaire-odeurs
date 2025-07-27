@@ -217,7 +217,7 @@ const groupBy = (data, interval) => {
 // ==================== PARTICULES “FUMÉE” KAKI (subtile, largeur x2) ====================
 let pCanvas, pCtx, particles = [], segs = [];
 let pAnimId = null;
-const PART_TOTAL_MAX = 450; // densité inchangée
+const PART_TOTAL_MAX = 225; // densité inchangée
 
 function initParticlesCanvas(){
   pCanvas = document.createElement('canvas');
@@ -269,7 +269,7 @@ function setParticlesPoints(points){
 
   buildSegments(points);
 
-  const target = Math.min(PART_TOTAL_MAX, segs.length * 40);
+  const target = Math.min(PART_TOTAL_MAX, segs.length * 20);
   if(particles.length < target){
     for(let i = particles.length; i < target; i++){
       const p = {};
