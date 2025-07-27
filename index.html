@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Signalement Odeur</title>
 
-  <!-- Tailwind CDN -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Flowbite -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet" />
@@ -40,14 +40,13 @@
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
-  <!-- Overlay -->
   <div id="overlay" class="fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 hidden">
     <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
     <p class="text-white mt-4 text-lg">Envoi en cours…</p>
   </div>
 
   <main class="w-full max-w-md">
-    <!-- 1. Carte Formulaire -->
+    <!-- Bloc 1 – Formulaire -->
     <div class="bg-white shadow-2xl rounded-2xl p-6">
       <h2 class="text-2xl font-semibold mb-6 text-slate-800 flex items-center gap-2">
         📢 Signalement d'odeur
@@ -97,13 +96,11 @@
       </form>
     </div>
 
-    <!-- 2. Carte \"Consulter la carte\" -->
+    <!-- Bloc 2 – Bouton vers carte -->
     <div class="bg-white shadow-2xl rounded-2xl p-6 mt-[1cm] text-center">
       <h3 class="text-xl font-semibold text-slate-800 mb-4 flex items-center justify-center gap-2">
-        🗺️ Consulter la carte
+        🗺️ Consultez les signalements
       </h3>
-      <p class="text-slate-600 mb-6">Voir les signalements déjà enregistrés sans en créer un nouveau.</p>
-
       <a href="carte.html"
          class="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-emerald-600 text-white font-semibold shadow-lg
                 hover:bg-emerald-500 hover:shadow-xl transition-all duration-200">
@@ -115,11 +112,10 @@
     </div>
   </main>
 
-  <!-- JS -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
   <script>
-    // Slider intensité
     noUiSlider.create(document.getElementById('intensiteSlider'), {
       start: 5,
       step: 1,
@@ -130,24 +126,22 @@
       document.getElementById('intensite').value = vals[0];
     });
 
-    // Géoloc
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(pos => {
-        latitude.value  = pos.coords.latitude;
+        latitude.value = pos.coords.latitude;
         longitude.value = pos.coords.longitude;
       });
     }
 
-    // IP
     fetch("https://api.ipify.org?format=json")
       .then(res => res.json())
       .then(data => { ip.value = data.ip; });
 
     const overlay = document.getElementById('overlay');
     const form = document.getElementById('form');
-    const latitude  = document.getElementById('latitude');
+    const latitude = document.getElementById('latitude');
     const longitude = document.getElementById('longitude');
-    const ip        = document.getElementById('ip');
+    const ip = document.getElementById('ip');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
