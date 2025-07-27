@@ -152,11 +152,17 @@ function makeWindIcon(dirDeg, speedKmh){
 }
 function updateWindMarker(dir, speed){
   if(!windMarker){
-    windMarker = L.marker(WIND_POS, { icon: makeWindIcon(dir, speed), interactive:false }).addTo(map);
+    windMarker = L.marker(WIND_POS, {
+      icon: makeWindIcon(dir, speed),
+      interactive: false,
+      zIndexOffset: 10000 // ✅ flèche au-dessus de la fumée
+    }).addTo(map);
   } else {
     windMarker.setIcon(makeWindIcon(dir, speed));
+    windMarker.setZIndexOffset(10000); // ✅ en cas de mise à jour
   }
 }
+
 
 // ==================== State ====================
 let allData = [], grouped = [], labels = [], windMeta = [];
