@@ -100,6 +100,8 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+<!-- === AJOUT NUAGE === PolylineDecorator pour dessiner/faire bouger les petites flèches -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-polylinedecorator/1.7.0/leaflet.polylineDecorator.min.js"></script>
 
 <script>
 // ==================== Helpers ====================
@@ -171,6 +173,61 @@ let isPlaying = false;
 let playTimer = null;
 let frameDelay = 1000; // ms
 
+// ==================== AJOUT NUAGE : flèches animées USINE -> points ====================
+let beamLinesLayer = null;
+let beamDecorators = [];
+let beamAnimId = null;
+let beamOffset = 0;
+
+function clearBeams(){
+  if (beamLinesLayer){ map.removeLayer(beamLinesLayer); beamLinesLayer = null; }
+  if (beamDecorators.length){
+    beamDecorators.forEach(o => map.removeLayer(o.deco));
+    beamDecorators = [];
+  }
+  if (beamAnimId){ cancelAnimationFrame(beamAnimId); beamAnimId = null; }
+  beamOffset = 0;
+}
+
+function startBeamAnim(){
+  function step(){
+    beamOffset = (beamOffset + 2) % 100;
+    beamDecorators.forEach(o=>{
+      o.deco.setPatterns([{
+        offset: beamOffset + '%',
+        repeat: '12%',
+        symbol: o.symbol
+      }]);
+    });
+    beamAnimId = requestAnimationFrame(step);
+  }
+  step();
+}
+
+function updateBeams(points){
+  clearBeams();
+  if (!points || !points.length) return;
+
+  const lines = points.map(p => L.polyline([USINE, [p.lat, p.lon]], { color:'transparent', weight:0 }));
+  beamLinesLayer = L.layerGroup(lines).addTo(map);
+
+  lines.forEach((line, i) => {
+    const col = getColor(points[i].intensite || 5);
+    const symbol = L.Symbol.arrowHead({
+      pixelSize: 8,
+      headAngle: 60,
+      pathOptions: { color: col, weight: 2, opacity: 0.9 }
+    });
+    const deco = L.polylineDecorator(line, {
+      patterns: [{ offset: '0%', repeat: '12%', symbol }]
+    }).addTo(map);
+    beamDecorators.push({ deco, symbol });
+  });
+
+  startBeamAnim();
+}
+// ==================== FIN AJOUT NUAGE ====================
+
 // ==================== Map update ====================
 const updateMap = (points) => {
   if (window.layer) map.removeLayer(window.layer);
@@ -213,7 +270,9 @@ const groupBy = (data, interval) => {
 function setFrame(idx){
   idx = Math.max(0, Math.min(idx, grouped.length-1));
   slider.value = idx;
-  updateMap(grouped[idx] || []);
+  const pts = grouped[idx] || [];
+  updateMap(pts);
+  updateBeams(pts); // === AJOUT NUAGE ===
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
@@ -223,6 +282,7 @@ function setFrame(idx){
 function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
+  updateBeams(flat); // === AJOUT NUAGE ===
   labelTxt.innerText = '';
   const wm = windFromArray(flat);
   updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
