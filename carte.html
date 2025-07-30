@@ -234,8 +234,8 @@ const updateMap = (points) => {
   Intensité : ${p.intensite}/10<br>
   ${p.commentaire}<br>
   ${p.dateStr}<br>
-  Vent ${isNaN(p.windDir) ? 'inconnu' : `du ${windDirectionLabel(p.windDir)} (${Math.round(p.windDir)}°)`} à ${isNaN(p.windSpeed) ? '–' : `${p.windSpeed} km/h`}
-`)
+  Vent ${isNaN(p.windDir) ? '–' : `${windDirectionLabel(p.windDir)} (${Math.round(p.windDir)}°)`} à ${isNaN(p.windSpeed) ? '–' : `${p.windSpeed} km/h`}
+
 
   )).addTo(map);
 };
