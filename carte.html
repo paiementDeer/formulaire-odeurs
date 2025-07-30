@@ -145,10 +145,10 @@ const USINE = [44.212805, 0.597916];
 const windHudEl = document.getElementById('windHud');
 
 function makeWindIconHTML(dirDeg, speedKmh){
-  const svg = <svg viewBox='0 0 100 100' style='transform: rotate(${dirDeg}deg);'>
+  const svg = `<svg viewBox='0 0 100 100' style='transform: rotate(${dirDeg}deg);'>
     <path d='M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z' fill='black' fill-opacity='0.6' stroke='white' stroke-width='4' stroke-linejoin='round'/>
-  </svg>;
-  const html = <div class='wind-icon'>${svg}<div class='wind-speed'>${isNaN(speedKmh)?'?':speedKmh+' km/h'}</div></div>;
+  </svg>`;
+  const html = `<div class='wind-icon'>${svg}<div class='wind-speed'>${isNaN(speedKmh)?'?':speedKmh+' km/h'}</div></div>`;
   return html;
 }
 function updateWindMarker(dir, speed){
@@ -183,7 +183,7 @@ const updateMap = (points) => {
       fillColor: getColor(p.intensite),
       fillOpacity: 0.6,
       radius: 60
-    }).bindPopup(<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.dateStr})
+    }).bindPopup(`<strong>${p.type}</strong><br>Intensité : ${p.intensite}/10<br>${p.commentaire}<br>${p.dateStr}`)
   )).addTo(map);
 };
 
@@ -309,9 +309,9 @@ function animateParticles(){
 
     const g = pCtx.createRadialGradient(x, y, 0, x, y, p.size);
     const a = p.alpha;
-    g.addColorStop(0.0, rgba(${base.r},${base.g},${base.b},${a}));
-    g.addColorStop(0.4, rgba(${base.r},${base.g},${base.b},${a*0.35}));
-    g.addColorStop(1.0, rgba(${base.r},${base.g},${base.b},0));
+    g.addColorStop(0.0, `rgba(${base.r},${base.g},${base.b},${a})`);
+    g.addColorStop(0.4, `rgba(${base.r},${base.g},${base.b},${a*0.35})`);
+    g.addColorStop(1.0, `rgba(${base.r},${base.g},${base.b},0)`);
 
     pCtx.fillStyle = g;
     pCtx.beginPath();
