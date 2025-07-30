@@ -131,9 +131,11 @@ function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n
 function windDirectionLabel(deg){
   if (isNaN(deg)) return '–';
   const dirs = ["nord","nord-est","est","sud-est","sud","sud-ouest","ouest","nord-ouest"];
-  const ix = Math.round(((deg % 360) / 45)) % 8;
+  const trueDir = (deg + 180) % 360; // on inverse la direction du vent
+  const ix = Math.round(trueDir / 45) % 8;
   return dirs[ix];
 }
+
 
 // ==================== Map ====================
 const map = L.map('map').setView([44.214, 0.606], 14);
