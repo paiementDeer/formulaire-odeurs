@@ -130,10 +130,29 @@ function avgDir(degArr){
 function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
 function windDirectionLabel(deg){
   if (isNaN(deg)) return '–';
-  const dirs = ["nord","nord-est","est","sud-est","sud","sud-ouest","ouest","nord-ouest"];
-  const trueDir = (deg + 180) % 360; // on inverse la direction du vent
-  const ix = Math.round(trueDir / 45) % 8;
-  return dirs[ix];
+
+  const dirs = [
+    { angle: 0,   label: "nord" },
+    { angle: 45,  label: "nord-est" },
+    { angle: 90,  label: "est" },
+    { angle: 135, label: "sud-est" },
+    { angle: 180, label: "sud" },
+    { angle: 225, label: "sud-ouest" },
+    { angle: 270, label: "ouest" },
+    { angle: 315, label: "nord-ouest" }
+  ];
+
+  const closest = dirs.reduce((a, b) =>
+    Math.abs(b.angle - deg) < Math.abs(a.angle - deg) ? b : a
+  );
+
+  const l = closest.label;
+
+  // Accord :
+  //  est / ouest  ➜ « de l’... »
+  //  autres       ➜ « du ... »
+  if (l.startsWith("e") || l.startsWith("o")) return `vent de l’${l}`;
+  return `vent du ${l}`;
 }
 
 
