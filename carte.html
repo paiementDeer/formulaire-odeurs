@@ -128,22 +128,27 @@ function avgDir(degArr){
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
-function windDirectionLabel(deg) {
+function windDirectionLabel(deg){
   if (isNaN(deg)) return '—';
 
   const dirs = [
     { a:   0, t: 'du nord' },
-    { a:  45, t: 'du nord‑est' },
+    { a:  45, t: 'du nord-est' },
     { a:  90, t: 'de l’est' },
-    { a: 135, t: 'du sud‑est' },
+    { a: 135, t: 'du sud-est' },
     { a: 180, t: 'du sud' },
-    { a: 225, t: 'du sud‑ouest' },
+    { a: 225, t: 'du sud-ouest' },
     { a: 270, t: 'de l’ouest' },
-    { a: 315, t: 'du nord‑ouest' }
+    { a: 315, t: 'du nord-ouest' }
   ];
 
-  return dirs.reduce((p, c) => Math.abs(c.a - deg) < Math.abs(p.a - deg) ? c : p).t;
+  const closest = dirs.reduce((p, c) =>
+    Math.abs(c.a - deg) < Math.abs(p.a - deg) ? c : p
+  );
+
+  return closest.t; // <-- plus de “vent” ici, juste “du sud” ou “de l’ouest”
 }
+
 
 
 // ==================== Map ====================
