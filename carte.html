@@ -128,6 +128,12 @@ function avgDir(degArr){
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
+function windDirectionLabel(deg){
+  if (isNaN(deg)) return '–';
+  const dirs = ["nord","nord-est","est","sud-est","sud","sud-ouest","ouest","nord-ouest"];
+  const ix = Math.round(((deg % 360) / 45)) % 8;
+  return dirs[ix];
+}
 
 // ==================== Map ====================
 const map = L.map('map').setView([44.214, 0.606], 14);
@@ -212,7 +218,7 @@ const updateMap = (points) => {
   Intensité : ${p.intensite}/10<br>
   ${p.commentaire}<br>
   ${p.dateStr}<br>
-  Vent : ${isNaN(p.windDir) ? '–' : `${Math.round(p.windDir)}°`} à ${isNaN(p.windSpeed) ? '–' : `${p.windSpeed} km/h`}
+  Vent ${isNaN(p.windDir) ? 'inconnu' : `du ${windDirectionLabel(p.windDir)} (${Math.round(p.windDir)}°)`} à ${isNaN(p.windSpeed) ? '–' : `${p.windSpeed} km/h`}
 `)
 
   )).addTo(map);
