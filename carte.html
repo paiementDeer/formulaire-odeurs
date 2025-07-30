@@ -167,12 +167,36 @@ const USINE = [44.212805, 0.597916];
 const windHudEl = document.getElementById('windHud');
 
 function makeWindIconHTML(dirDeg, speedKmh){
-  const svg = `<svg viewBox='0 0 100 100' style='transform: rotate(${(dirDeg + 180) % 360}deg);'>
+  // flèche (on ajoute 180 ° pour pointer D’OÙ vient le vent)
+  const svg = `<svg viewBox="0 0 100 100"
+                   style="transform:rotate(${(dirDeg + 180) % 360}deg);">
+      <path d="M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z"
+            fill="black" fill-opacity="0.6"
+            stroke="white" stroke-width="4" stroke-linejoin="round"/>
+    </svg>`;
 
-    <path d='M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z' fill='black' fill-opacity='0.6' stroke='white' stroke-width='4' stroke-linejoin='round'/>
-  </svg>`;
-  const html = `<div class='wind-icon'>${svg}<div class='wind-speed'>${isNaN(speedKmh)?'?':speedKmh+' km/h'}</div></div>`;
-  return html;
+  // libellé direction + degrés
+  const dirLabel = isNaN(dirDeg)
+      ? "—"
+      : `${windDirectionLabel(dirDeg)} (${Math.round(dirDeg)}°)`;
+
+  // vitesse
+  const speedLabel = isNaN(speedKmh) ? "—" : `${speedKmh} km/h`;
+
+  /*  rendu final :
+      ┌──── flèche ────┐
+      │ 17 km/h        │  (déjà existant)
+      │ du sud (180°)  │  (nouveau)
+      └────────────────┘
+  */
+  return `
+    <div class="wind-icon">
+      ${svg}
+      <div class="wind-speed">${speedLabel}</div>
+      <div class="wind-dir">${dirLabel}</div>
+    </div>`;
+}
+
 }
 function updateWindMarker(dir, speed){
   if(!windHudEl) return;
