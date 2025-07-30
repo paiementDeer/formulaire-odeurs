@@ -157,6 +157,29 @@ function updateWindMarker(dir, speed){
   windHudEl.innerHTML = makeWindIconHTML(isNaN(dir)?0:dir, speed);
 }
 
+
+
+// ==================== Météo live si aucun signalement ====================
+const fallbackLat = 44.212805;
+const fallbackLon = 0.597916;
+const API_KEY = "5e7795e19d6fbcb80542a3ea152b1d1e"; // ✅ même clé que le formulaire
+
+async function fetchLiveWind(){
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${fallbackLat}&lon=${fallbackLon}&appid=${API_KEY}&units=metric`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const deg = json.wind?.deg;
+    const speed = json.wind?.speed ? Math.round(json.wind.speed * 3.6) : NaN;
+    if (!isNaN(deg)) updateWindMarker(deg, speed);
+  } catch(e){
+    console.warn("Erreur récupération vent live :", e);
+  }
+}
+
+
+
+
 // ==================== State ====================
 let allData = [], grouped = [], labels = [], windMeta = [];
 const slider = document.getElementById('slider');
@@ -331,7 +354,9 @@ function setFrame(idx){
   updateMap(grouped[idx] || []);
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
-  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+  if (isNaN(wm.dir)) fetchLiveWind();
+else updateWindMarker(wm.dir, wm.speed);
+
 
   // Particules pour cette tranche
   setParticlesPoints(grouped[idx] || []);
