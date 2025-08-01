@@ -372,12 +372,8 @@ function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
   labelTxt.innerText = '';
-  if (flat.length === 0) {
-    fetchLiveWind(); // <-- Appelle la météo live si aucun signalement
-  } else {
-    const wm = windFromArray(flat);
-    updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
-  }
+   fetchLiveWind(); // Toujours la météo live, signalement ou pas
+
   setParticlesPoints(flat);
 }
 
