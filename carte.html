@@ -506,6 +506,9 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
     refresh('today');
   });
+  // Toujours afficher la météo live à l'ouverture de la page
+fetchLiveWind();
+
 </script>
 </body>
 </html>
