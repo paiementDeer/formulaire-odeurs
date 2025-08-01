@@ -169,6 +169,8 @@ const map = L.map('map').setView([44.214, 0.606], 14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
+fetchLiveWind(); // Appel météo forcé même sans signalement
+
 const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
 L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
 const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E"][Math.min(9, Math.max(0, i-1))];
