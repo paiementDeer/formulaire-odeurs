@@ -104,6 +104,30 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 
 <script>
+// Appel automatique à Google Apps Script pour récupérer météo
+async function fetchLiveWind() {
+  const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec';
+  const lat = 44.212805;
+  const lon = 0.597916;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ latitude: lat, longitude: lon }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const txt = await res.text();
+    if (txt.trim() === 'OK') {
+      console.log('✅ Météo enregistrée via Apps Script');
+    } else {
+      console.warn('Réponse inattendue :', txt);
+    }
+  } catch (err) {
+    console.error('Erreur météo Apps Script :', err);
+  }
+}
+
+  
 // ==================== Helpers ====================
 function hasAnySignalement(pointsArray) {
   return Array.isArray(pointsArray) && pointsArray.length > 0 && pointsArray.some(arr => arr.length > 0);
