@@ -111,12 +111,13 @@ async function fetchLiveWindReal() {
   const lon = 0.597916;
 
   try {
-   const res = await fetch(url, {
-  method: 'POST',
-  body: JSON.stringify({ latitude: lat, longitude: lon })
-});
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ latitude: lat, longitude: lon }),
+      headers: { 'Content-Type': 'application/json' }
+    });
 
-    const json = await res.json();                     // <-- le JSON renvoyé par le GAS
+    const json = await res.json();                     
     lastLiveWind.dir   = Number(json.windDir);
     lastLiveWind.speed = Number(json.windSpeed);
     updateWindMarker(lastLiveWind.dir, lastLiveWind.speed);
@@ -126,6 +127,7 @@ async function fetchLiveWindReal() {
     updateWindMarker(NaN, NaN);
   }
 }
+
 
 
   
