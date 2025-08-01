@@ -18,10 +18,8 @@
       font-weight: bold; font-size: 14px; z-index: 1001;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2); text-decoration: none; color: black;
     }
-
-    /* HUD vent (flèche + vitesse) */
     #windHud {
-      position: absolute; top: 10px; right: 10px; z-index: 1002; /* au-dessus du bouton */
+      position: absolute; top: 10px; right: 10px; z-index: 1002;
       display: flex; flex-direction: column; align-items: center; pointer-events: none;
     }
     .wind-icon svg { width:60px; height:60px; opacity:0.6; }
@@ -30,7 +28,11 @@
       padding:3px 8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);
       font-weight:bold;text-align:center;margin-top:4px; font-size:11px;
     }
-
+    .wind-dir{
+      background:rgba(255,255,255,.85);
+      padding:2px 7px; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.14);
+      margin-top:2px; font-size:11px; text-align:center;
+    }
     #controls {
       max-width: 92vw;
       position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
@@ -43,8 +45,6 @@
     input[type="range"].disabled { opacity: 0.3; pointer-events: none; }
     .hidden { display: none !important; }
     .flatpickr-calendar { z-index: 3000 !important; }
-
-    /* Player */
     #playerControls { display:flex; align-items:center; gap:6px; }
     #btnPlayPause{
       width:32px;height:32px;border:none;border-radius:50%;cursor:pointer;
@@ -52,15 +52,12 @@
       display:flex;align-items:center;justify-content:center;font-weight:bold;
     }
     #speedSelect{ border:1px solid #ccc; border-radius:6px; padding:2px 4px; }
-
     @media (max-width: 600px) {
       #controls { flex-wrap: wrap; overflow-x: auto; justify-content: flex-start; }
       input[type="range"] { width: 100px; }
     }
-
-    /* Canvas particules */
     canvas.particle-canvas {
-      position:absolute; top:0; left:0; pointer-events:none; z-index: 500; /* sous les contrôles */
+      position:absolute; top:0; left:0; pointer-events:none; z-index: 500;
     }
   </style>
 </head>
@@ -83,17 +80,12 @@
   </div>
   <input id="customRange" type="text" class="hidden" placeholder="Date début - fin" readonly />
   <input id="singleDate" type="text" class="hidden" placeholder="Choisir une date" readonly />
-
-  <!-- Par défaut décoché pour afficher la synthèse -->
   <label><input type="checkbox" id="modeDynamic" /> Évolution dynamique</label>
-
   <div style="display:flex; align-items:center; gap:6px;">
     <span style="margin-right:4px;">⏱️</span>
     <input type="range" id="slider" min="0" max="0" value="0" class="disabled" disabled />
   </div>
   <span id="sliderLabel"></span>
-
-  <!-- Player auto play/pause -->
   <div id="playerControls" class="hidden">
     <button id="btnPlayPause" title="Lecture/Pause">▶</button>
     <select id="speedSelect" title="Vitesse">
@@ -107,13 +99,39 @@
   </div>
 </div>
 
-<!-- Libs -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 
 <script>
+// Appel automatique à Google Apps Script pour récupérer météo
+async function fetchLiveWind() {
+  const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec';
+  const lat = 44.212805;
+  const lon = 0.597916;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ latitude: lat, longitude: lon }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const txt = await res.text();
+    if (txt.trim() === 'OK') {
+      console.log('✅ Météo enregistrée via Apps Script');
+    } else {
+      console.warn('Réponse inattendue :', txt);
+    }
+  } catch (err) {
+    console.error('Erreur météo Apps Script :', err);
+  }
+}
+
+  
 // ==================== Helpers ====================
+function hasAnySignalement(pointsArray) {
+  return Array.isArray(pointsArray) && pointsArray.length > 0 && pointsArray.some(arr => arr.length > 0);
+}
 function parseFrDate(str){
   const [d,m,rest]=str.split('/');
   if(!rest) return new Date(str);
@@ -130,7 +148,6 @@ function avgDir(degArr){
 function numVal(v){const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:n;}
 function windDirectionLabel(deg){
   if (isNaN(deg)) return '—';
-
   const dirs = [
     { a:   0, t: 'du nord' },
     { a:  45, t: 'du nord-est' },
@@ -141,25 +158,19 @@ function windDirectionLabel(deg){
     { a: 270, t: 'de l’ouest' },
     { a: 315, t: 'du nord-ouest' }
   ];
-
   const closest = dirs.reduce((p, c) =>
     Math.abs(c.a - deg) < Math.abs(p.a - deg) ? c : p
   );
-
-  return closest.t; // <-- plus de “vent” ici, juste “du sud” ou “de l’ouest”
+  return closest.t;
 }
-
-
 
 // ==================== Map ====================
 const map = L.map('map').setView([44.214, 0.606], 14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
-
 const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
 L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
-
 const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E"][Math.min(9, Math.max(0, i-1))];
 
 // ---------------- Vent -----------------
@@ -167,28 +178,15 @@ const USINE = [44.212805, 0.597916];
 const windHudEl = document.getElementById('windHud');
 
 function makeWindIconHTML(dirDeg, speedKmh){
-  // flèche (on ajoute 180 ° pour pointer D’OÙ vient le vent)
-  const svg = `<svg viewBox="0 0 100 100"
-                   style="transform:rotate(${(dirDeg + 180) % 360}deg);">
+  const svg = `<svg viewBox="0 0 100 100" style="transform:rotate(${(dirDeg + 180) % 360}deg);">
       <path d="M50 4 L72 58 L56 52 L56 96 L44 96 L44 52 L28 58 Z"
             fill="black" fill-opacity="0.6"
             stroke="white" stroke-width="4" stroke-linejoin="round"/>
     </svg>`;
-
-  // libellé direction + degrés
   const dirLabel = isNaN(dirDeg)
       ? "—"
       : `${windDirectionLabel(dirDeg)} (${Math.round(dirDeg)}°)`;
-
-  // vitesse
   const speedLabel = isNaN(speedKmh) ? "—" : `${speedKmh} km/h`;
-
-  /*  rendu final :
-      ┌──── flèche ────┐
-      │ 17 km/h        │  (déjà existant)
-      │ du sud (180°)  │  (nouveau)
-      └────────────────┘
-  */
   return `
     <div class="wind-icon">
       ${svg}
@@ -196,20 +194,15 @@ function makeWindIconHTML(dirDeg, speedKmh){
       <div class="wind-dir">${dirLabel}</div>
     </div>`;
 }
-
-}
 function updateWindMarker(dir, speed){
   if(!windHudEl) return;
   windHudEl.innerHTML = makeWindIconHTML(isNaN(dir)?0:dir, speed);
 }
 
-
-
 // ==================== Météo live si aucun signalement ====================
 const fallbackLat = 44.212805;
 const fallbackLon = 0.597916;
 const API_KEY = "5e7795e19d6fbcb80542a3ea152b1d1e"; // ✅ même clé que le formulaire
-
 async function fetchLiveWind(){
   try {
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${fallbackLat}&lon=${fallbackLon}&appid=${API_KEY}&units=metric`;
@@ -218,13 +211,12 @@ async function fetchLiveWind(){
     const deg = json.wind?.deg;
     const speed = json.wind?.speed ? Math.round(json.wind.speed * 3.6) : NaN;
     if (!isNaN(deg)) updateWindMarker(deg, speed);
+    else updateWindMarker(NaN, NaN);
   } catch(e){
     console.warn("Erreur récupération vent live :", e);
+    updateWindMarker(NaN, NaN);
   }
 }
-
-
-
 
 // ==================== State ====================
 let allData = [], grouped = [], labels = [], windMeta = [];
@@ -234,12 +226,10 @@ const modeDynamic = document.getElementById('modeDynamic');
 const preset = document.getElementById('preset');
 const customInput = document.getElementById('customRange');
 const singleInput = document.getElementById('singleDate');
-
 const btnPlayPause = document.getElementById('btnPlayPause');
 const speedSelect = document.getElementById('speedSelect');
 const loopCheckbox = document.getElementById('loop');
 const playerControls = document.getElementById('playerControls');
-
 let isPlaying = false;
 let playTimer = null;
 let frameDelay = 1000; // ms
@@ -262,9 +252,7 @@ const updateMap = (points) => {
         ? 'inconnu'
         : `${windDirectionLabel(p.windDir)} (${Math.round(p.windDir)}°)`} à
         ${isNaN(p.windSpeed) ? '–' : `${p.windSpeed} km/h`}
-
 `)
-
   )).addTo(map);
 };
 
@@ -288,7 +276,6 @@ const groupBy = (data, interval) => {
     });
   const keys = Object.keys(g).sort();
   labels = keys.map(k => new Date(k).toLocaleString('fr-FR'));
-
   windMeta = keys.map(k => windFromArray(g[k]));
   return keys.map(k => g[k]);
 };
@@ -301,9 +288,8 @@ const PART_TOTAL_MAX = 450; // densité inchangée
 function initParticlesCanvas(){
   pCanvas = document.createElement('canvas');
   pCanvas.className = 'particle-canvas';
-  map.getContainer().appendChild(pCanvas); // fixé au container, pas au pane
+  map.getContainer().appendChild(pCanvas);
   pCtx = pCanvas.getContext('2d');
-
   function resize(){
     const size = map.getSize();
     pCanvas.width  = size.x;
@@ -324,9 +310,9 @@ function spawnParticle(p){
   if(!segs.length) return;
   const idx = Math.floor(Math.random()*segs.length);
   p.seg   = idx;
-  p.t     = Math.random()*0.1;              // départ proche usine
-  p.size  = 12 + Math.random()*32;           // ×2 par rapport à 6–16
-  p.alpha = 0.03 + Math.random()*0.07;       // très transparent
+  p.t     = Math.random()*0.1;
+  p.size  = 12 + Math.random()*32;
+  p.alpha = 0.03 + Math.random()*0.07;
   p.speed = 0.0018 + Math.random()*0.0025;
   p.phi   = Math.random()*Math.PI*2;
   p.jit   = 0.10 + Math.random()*0.22;
@@ -345,9 +331,7 @@ function setParticlesPoints(points){
     particlesClear();
     return;
   }
-
   buildSegments(points);
-
   const target = Math.min(PART_TOTAL_MAX, segs.length * 40);
   if(particles.length < target){
     for(let i = particles.length; i < target; i++){
@@ -358,47 +342,38 @@ function setParticlesPoints(points){
   } else if(particles.length > target){
     particles.length = target;
   }
-
   if(!pAnimId) animateParticles();
 }
 
 function animateParticles(){
   pAnimId = requestAnimationFrame(animateParticles);
   if(!pCtx) return;
-
   pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
-  const base = {r:107,g:142,b:35}; // kaki
-
+  const base = {r:107,g:142,b:35};
   particles.forEach(p=>{
     const s = segs[p.seg];
     if(!s){ spawnParticle(p); return; }
-
     const sPx = map.latLngToContainerPoint(s.sLL);
     const ePx = map.latLngToContainerPoint(s.eLL);
     const vx = ePx.x - sPx.x;
     const vy = ePx.y - sPx.y;
     const len = Math.sqrt(vx*vx + vy*vy) || 1;
-
     const xBase = sPx.x + vx * p.t;
     const yBase = sPx.y + vy * p.t;
-
     const nx = -vy / len;
     const ny =  vx / len;
     const jitter = Math.sin(p.t*8 + p.phi) * p.jit * len * 0.02;
     const x = xBase + nx * jitter;
     const y = yBase + ny * jitter;
-
     const g = pCtx.createRadialGradient(x, y, 0, x, y, p.size);
     const a = p.alpha;
     g.addColorStop(0.0, `rgba(${base.r},${base.g},${base.b},${a})`);
     g.addColorStop(0.4, `rgba(${base.r},${base.g},${base.b},${a*0.35})`);
     g.addColorStop(1.0, `rgba(${base.r},${base.g},${base.b},0)`);
-
     pCtx.fillStyle = g;
     pCtx.beginPath();
     pCtx.arc(x, y, p.size, 0, Math.PI*2);
     pCtx.fill();
-
     p.t += p.speed;
     if(p.t > 1){ spawnParticle(p); }
   });
@@ -412,10 +387,7 @@ function setFrame(idx){
   labelTxt.innerText = labels[idx] || '';
   const wm = windMeta[idx] || {dir:NaN, speed:NaN};
   if (isNaN(wm.dir)) fetchLiveWind();
-else updateWindMarker(wm.dir, wm.speed);
-
-
-  // Particules pour cette tranche
+  else updateWindMarker(wm.dir, wm.speed);
   setParticlesPoints(grouped[idx] || []);
 }
 
@@ -424,17 +396,16 @@ function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
   labelTxt.innerText = '';
-  const wm = windFromArray(flat);
-  updateWindMarker(isNaN(wm.dir)?0:wm.dir, wm.speed);
+   fetchLiveWind(); // Toujours la météo live, signalement ou pas
 
   setParticlesPoints(flat);
 }
+
 
 // ==================== Refresh (filter + regroup) ====================
 const refresh = (mode) => {
   let gtype = 'day';
   const today = new Date();
-
   if (mode === 'today' || mode === 'yesterday' || mode === 'single') gtype = '10min';
   else if (mode === 'last7')  gtype = 'hour';
   else if (mode === 'last30') gtype = 'day';
@@ -443,7 +414,6 @@ const refresh = (mode) => {
     const diff = (sel[1] - sel[0]) / 86400000;
     gtype = diff <= 1 ? '10min' : diff <= 7 ? 'hour' : 'day';
   }
-
   const filtered = allData.filter(d => {
     const date = d.dateObj;
     if (mode === 'today')     return date.toDateString() === today.toDateString();
@@ -454,17 +424,13 @@ const refresh = (mode) => {
     if (mode === 'custom')    { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && date <= d2; }
     return true;
   });
-
   grouped = groupBy(filtered, gtype);
-
   slider.max = Math.max(0, grouped.length - 1);
   slider.value = slider.max;
-
   const canSlide = grouped.length > 1 && modeDynamic.checked;
   slider.disabled = !canSlide;
   slider.classList.toggle('disabled', !canSlide);
   playerControls.classList.toggle('hidden', !canSlide);
-
   if (modeDynamic.checked && canSlide) {
     setFrame(slider.value);
     play();
@@ -480,7 +446,6 @@ modeDynamic.onchange = () => {
   slider.disabled = !canSlide;
   slider.classList.toggle('disabled', !canSlide);
   playerControls.classList.toggle('hidden', !canSlide);
-
   if (!modeDynamic.checked) {
     pause();
     showSynthesis();
@@ -491,7 +456,6 @@ modeDynamic.onchange = () => {
     play();
   }
 };
-
 slider.oninput = () => setFrame(+slider.value);
 
 // ==================== Player ====================
@@ -531,7 +495,6 @@ const fpSingle = flatpickr("#singleDate", {
   dateFormat: "d/m/Y",
   onClose: () => refresh("single")
 });
-
 preset.onchange = e => {
   const val = e.target.value;
   const showCustom = val === 'custom';
@@ -561,9 +524,11 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
         windDir:   numVal(r["Direction vent (°)"])
       };
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
-
     refresh('today');
   });
+  // Toujours afficher la météo live à l'ouverture de la page
+fetchLiveWind();
+
 </script>
 </body>
 </html>
