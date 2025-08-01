@@ -110,20 +110,19 @@ async function fetchLiveWindReal() {
   const lat = 44.212805;
   const lon = 0.597916;
   const url = 'https://script.google.com/macros/s/AKfycbycbrYQWHEoqHYhEcPnjepAK0_cfqMU2LYW2NPcHPIB_FdzogLljn6QARZ_rfpgoG573g/exec'
-            + '?lat=' + lat
-            + '&lon=' + lon
-            + '&autoRequest=true';   // indicateur pour doPost si besoin
+            + `?lat=${lat}&lon=${lon}&autoRequest=true&callback=?`;
 
   try {
-    const res  = await fetch(url);   // GET simple → pas de pré-vol CORS
-    const json = await res.json();   // { windDir, windSpeed }
-
+    const jsonp = await fetch(url).then(res => res.text());
+    const match = jsonp.match(/\?\((.*)\)/);
+    if (!match || !match[1]) throw new Error("Réponse JSONP invalide");
+    const json = JSON.parse(match[1]);
     lastLiveWind.dir   = Number(json.windDir);
     lastLiveWind.speed = Number(json.windSpeed);
     updateWindMarker(lastLiveWind.dir, lastLiveWind.speed);
-    console.log('✅ Météo live mise à jour (GET)');
+    console.log('✅ Météo live mise à jour (JSONP)');
   } catch (err) {
-    console.error('Erreur GET Apps Script :', err);
+    console.error('❌ Erreur JSONP Apps Script :', err);
     updateWindMarker(NaN, NaN);
   }
 }
