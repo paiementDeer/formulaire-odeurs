@@ -104,8 +104,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 
 <script>
-// Appel automatique à Google Apps Script pour récupérer météo
-async function fetchLiveWind() {
+// Envoi vers Google Apps Script (enregistrement météo)
+async function logWeatherToSheet() {
   const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec';
   const lat = 44.212805;
   const lon = 0.597916;
@@ -200,6 +200,12 @@ function updateWindMarker(dir, speed){
   if(!windHudEl) return;
   windHudEl.innerHTML = makeWindIconHTML(isNaN(dir)?0:dir, speed);
 }
+
+// ─── Lancement immédiat au chargement de la page ──────────
+updateWindMarker(NaN, NaN);   // affiche un tiret le temps de la réponse
+logWeatherToSheet();          // 1) enregistre dans Google Sheets
+fetchLiveWind();              // 2) récupère la météo Open-Weather
+
 
 // ==================== Météo live si aucun signalement ====================
 const fallbackLat = 44.212805;
@@ -528,8 +534,7 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
     refresh('today');
   });
-  // Toujours afficher la météo live à l'ouverture de la page
-fetchLiveWind();
+  
 
 </script>
 </body>
