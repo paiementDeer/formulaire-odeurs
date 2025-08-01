@@ -59,6 +59,27 @@
     canvas.particle-canvas {
       position:absolute; top:0; left:0; pointer-events:none; z-index: 500;
     }
+
+#statistiques-carte {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: sans-serif;
+  z-index: 999;
+}
+#statistiques-carte div {
+  margin-bottom: 3px;
+}
+#statistiques-carte div:last-child {
+  margin-bottom: 0;
+}
+
   </style>
 </head>
 <body>
@@ -167,6 +188,14 @@ function windDirectionLabel(deg){
     Math.abs(c.a - deg) < Math.abs(p.a - deg) ? c : p
   );
   return closest.t;
+}
+
+function updateStats(arr){
+  const nbSignalements = arr.length;
+  const nbUtilisateurs = new Set(arr.map(p => p.ip).filter(ip => ip)).size;
+
+  document.getElementById('nb-signalements').textContent = nbSignalements || '–';
+  document.getElementById('nb-utilisateurs').textContent = nbUtilisateurs || '–';
 }
 
 // ==================== Map ====================
@@ -442,6 +471,8 @@ const refresh = (mode) => {
     if (mode === 'custom')    { const [d1,d2] = fpRange.selectedDates; return d1 && d2 && date >= d1 && date <= d2; }
     return true;
   });
+updateStats(filtered);
+
   grouped = groupBy(filtered, gtype);
   slider.max = Math.max(0, grouped.length - 1);
   slider.value = slider.max;
@@ -537,16 +568,18 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
     allData = rows.map(r=>{
       const dateStr = r["Date/heure"]; 
       const dateObj = parseFrDate(dateStr);
-      return {
-        lat: numVal(r["Latitude"]),
-        lon: numVal(r["Longitude"]),
-        intensite: parseInt(r["Intensité"],10),
-        type: r["Type d’odeur"],
-        commentaire: r["Commentaire"],
-        dateStr, dateObj,
-        windSpeed: numVal(r["Vent (km/h)"]),
-        windDir:   numVal(r["Direction vent (°)"])
-      };
+     return {
+  lat: numVal(r["Latitude"]),
+  lon: numVal(r["Longitude"]),
+  intensite: parseInt(r["Intensité"],10),
+  type: r["Type d’odeur"],
+  commentaire: r["Commentaire"],
+  ip: r["IP"] || '',                 // ← nouvelle ligne
+  dateStr, dateObj,
+  windSpeed: numVal(r["Vent (km/h)"]),
+  windDir:   numVal(r["Direction vent (°)"])
+};
+
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
     refresh('today');
   });
@@ -555,5 +588,10 @@ fetchLiveWindReal();   // obtient le vent live dès l’ouverture
 
 
 </script>
+<div id="statistiques-carte">
+  <div>👥 <strong>Utilisateurs</strong> : <span id="nb-utilisateurs">–</span></div>
+  <div>📍 <strong>Signalements</strong> : <span id="nb-signalements">–</span></div>
+</div>
+
 </body>
 </html>
