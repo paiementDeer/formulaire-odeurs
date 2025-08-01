@@ -112,10 +112,10 @@ async function fetchLiveWindReal() {
 
   try {
     const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ latitude: lat, longitude: lon }),
-      headers: { 'Content-Type': 'application/json' }
-    });
+  method: 'POST',
+  body: JSON.stringify({ latitude: lat, longitude: lon, autoRequest: true })
+});
+
 
     const json = await res.json();                     
     lastLiveWind.dir   = Number(json.windDir);
