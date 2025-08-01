@@ -104,6 +104,30 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 
 <script>
+// Appel automatique à Google Apps Script pour récupérer météo
+async function fetchLiveWind() {
+  const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec';
+  const lat = 44.212805;
+  const lon = 0.597916;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ latitude: lat, longitude: lon }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const txt = await res.text();
+    if (txt.trim() === 'OK') {
+      console.log('✅ Météo enregistrée via Apps Script');
+    } else {
+      console.warn('Réponse inattendue :', txt);
+    }
+  } catch (err) {
+    console.error('Erreur météo Apps Script :', err);
+  }
+}
+
+  
 // ==================== Helpers ====================
 function hasAnySignalement(pointsArray) {
   return Array.isArray(pointsArray) && pointsArray.length > 0 && pointsArray.some(arr => arr.length > 0);
@@ -145,7 +169,6 @@ const map = L.map('map').setView([44.214, 0.606], 14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
-
 const usineIcon = L.divIcon({ html: '<div style="font-size:48px;">🏭</div>', iconSize: [48,48], className: 'usine-marker' });
 L.marker([44.212805, 0.597916], { icon: usineIcon }).addTo(map).bindPopup("Usine d'incinération ATEMAX");
 const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#943126","#78281F","#641E16","#512E2E"][Math.min(9, Math.max(0, i-1))];
@@ -153,9 +176,6 @@ const getColor = i => ["#FADADD","#F5B7B1","#EC7063","#E74C3C","#CB4335","#94312
 // ---------------- Vent -----------------
 const USINE = [44.212805, 0.597916];
 const windHudEl = document.getElementById('windHud');
-const fallbackLat = 44.212805;
-const fallbackLon = 0.597916;
-const API_KEY = "5e7795e19d6fbcb80542a3ea152b1d1e"; // ✅ même clé que le formulaire
 
 function makeWindIconHTML(dirDeg, speedKmh){
   const svg = `<svg viewBox="0 0 100 100" style="transform:rotate(${(dirDeg + 180) % 360}deg);">
@@ -179,29 +199,10 @@ function updateWindMarker(dir, speed){
   windHudEl.innerHTML = makeWindIconHTML(isNaN(dir)?0:dir, speed);
 }
 
-// Envoi vers Google Apps Script (enregistrement météo)
-async function logWeatherToSheet() {
-  const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec';
-  const lat = 44.212805;
-  const lon = 0.597916;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ latitude: lat, longitude: lon }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const txt = await res.text();
-    if (txt.trim() === 'OK') {
-      console.log('✅ Météo enregistrée via Apps Script');
-    } else {
-      console.warn('Réponse inattendue :', txt);
-    }
-  } catch (err) {
-    console.error('Erreur météo Apps Script :', err);
-  }
-}
-
 // ==================== Météo live si aucun signalement ====================
+const fallbackLat = 44.212805;
+const fallbackLon = 0.597916;
+const API_KEY = "5e7795e19d6fbcb80542a3ea152b1d1e"; // ✅ même clé que le formulaire
 async function fetchLiveWind(){
   try {
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${fallbackLat}&lon=${fallbackLon}&appid=${API_KEY}&units=metric`;
@@ -216,11 +217,6 @@ async function fetchLiveWind(){
     updateWindMarker(NaN, NaN);
   }
 }
-
-// ─── Lancement immédiat au chargement de la page ──────────
-updateWindMarker(NaN, NaN);   // affiche un tiret le temps de la réponse
-logWeatherToSheet();          // 1) enregistre dans Google Sheets
-fetchLiveWind();              // 2) récupère la météo Open-Weather
 
 // ==================== State ====================
 let allData = [], grouped = [], labels = [], windMeta = [];
@@ -400,9 +396,11 @@ function showSynthesis(){
   const flat = grouped.flat();
   updateMap(flat);
   labelTxt.innerText = '';
-  fetchLiveWind(); // Toujours la météo live, signalement ou pas
+   fetchLiveWind(); // Toujours la météo live, signalement ou pas
+
   setParticlesPoints(flat);
 }
+
 
 // ==================== Refresh (filter + regroup) ====================
 const refresh = (mode) => {
@@ -528,6 +526,8 @@ fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feu
     }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
     refresh('today');
   });
+  // Toujours afficher la météo live à l'ouverture de la page
+fetchLiveWind();
 
 </script>
 </body>
