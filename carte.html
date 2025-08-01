@@ -105,28 +105,29 @@
 
 <script>
 // --- Météo live via Google Apps Script -------------------
+// --- Météo live via Apps Script (GET simple) --------------
 async function fetchLiveWindReal() {
-  const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec';
   const lat = 44.212805;
   const lon = 0.597916;
+  const url = 'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec'
+            + '?lat=' + lat
+            + '&lon=' + lon
+            + '&autoRequest=true';   // indicateur pour doPost si besoin
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ latitude: lat, longitude: lon }),
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const res  = await fetch(url);   // GET simple → pas de pré-vol CORS
+    const json = await res.json();   // { windDir, windSpeed }
 
-    const json = await res.json();                     
     lastLiveWind.dir   = Number(json.windDir);
     lastLiveWind.speed = Number(json.windSpeed);
     updateWindMarker(lastLiveWind.dir, lastLiveWind.speed);
-    console.log('✅ Météo live mise à jour');
+    console.log('✅ Météo live mise à jour (GET)');
   } catch (err) {
-    console.error('Erreur météo Apps Script :', err);
+    console.error('Erreur GET Apps Script :', err);
     updateWindMarker(NaN, NaN);
   }
 }
+
 
 
 
