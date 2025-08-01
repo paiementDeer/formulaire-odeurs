@@ -15,10 +15,10 @@
  #new-signal {
   position: absolute;
   top: 10px;
-  left: 50%;
-  transform: translateX(calc(-50% - 0.5cm));  /* Décale de 0,5cm vers la gauche */
+  left: calc(50% - 0.5cm);    /* Décalé de 0,5 cm vers la gauche */
+  transform: translateX(-50%);
   background: white;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
   font-weight: bold;
   font-size: 15px;
@@ -27,23 +27,24 @@
   text-decoration: none;
   color: black;
   width: auto;
+  max-width: 96vw;
   min-width: 0;
-  max-width: 95vw;
   text-align: center;
   line-height: 1.3;
-  white-space: normal;  /* Permet le retour à la ligne automatique */
+  white-space: normal;   /* Permet retour à la ligne auto */
   word-break: break-word;
+  display: inline-block;
 }
-@media (max-width: 500px) {
+
+@media (max-width: 440px) {
   #new-signal {
     font-size: 14px;
-    padding: 7px 10vw;
-    max-width: 96vw;
-    left: 50%;
-    transform: translateX(calc(-50% - 0.5cm)); /* Garde le décalage */
-    white-space: normal;  /* Laisse le texte passer sur 2 lignes */
+    padding: 7px 4vw;
+    max-width: 92vw;
+    width: 16em;   /* Force une largeur adaptée pour deux lignes */
   }
 }
+
 
 
 
