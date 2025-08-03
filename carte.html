@@ -593,28 +593,44 @@ preset.onchange = e => {
 };
 
 // ==================== Load data (Google Sheets) ====================
-fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201")
-  .then(res=>res.json())
-  .then(rows=>{
-    allData = rows.map(r=>{
-      const dateStr = r["Date/heure"]; 
-      const dateObj = parseFrDate(dateStr);
-     return {
-  lat: numVal(r["Latitude"]),
-  lon: numVal(r["Longitude"]),
-  intensite: parseInt(r["Intensité"],10),
-  type: r["Type d’odeur"],
-  commentaire: r["Commentaire"],
-    ip: (r["Adresse IP"] || '').trim(),   // ↩️ bon en-tête + on enlève les espaces
+// ─── Charge les données; réessaie si la ligne du jour n'est pas encore visible ───
+function loadRows(attempt = 1, maxTries = 3) {
+  fetch("https://opensheet.elk.sh/1z6YXiX0MKEwrZ0rnjgj4mfFSUSk6wRh6-kRK9JCSIzc/Feuille%201?nocache=" + Date.now(),
+        { cache: "no-store" })
+    .then(r => r.json())
+    .then(rows => {
+      const latest = rows.at(-1)?.["Date/heure"] || "";
+      const today  = new Date().toLocaleDateString("fr-FR");
+      const dataReady = latest.startsWith(today);
 
-  dateStr, dateObj,
-  windSpeed: numVal(r["Vent (km/h)"]),
-  windDir:   numVal(r["Direction vent (°)"])
-};
+      if (!dataReady && attempt < maxTries) {
+        console.log(`Tentative ${attempt}/${maxTries} – ligne du jour absente, nouveau check dans 2s…`);
+        return setTimeout(() => loadRows(attempt + 1, maxTries), 2000);
+      }
 
-    }).filter(d=>!isNaN(d.lat)&&!isNaN(d.lon)&&d.dateObj instanceof Date && !isNaN(d.dateObj));
-    refresh('today');
-  });
+      allData = rows.map(r => {
+        const dateStr = r["Date/heure"];
+        const dateObj = parseFrDate(dateStr);
+        return {
+          lat:        numVal(r["Latitude"]),
+          lon:        numVal(r["Longitude"]),
+          intensite:  parseInt(r["Intensité"], 10),
+          type:       r["Type d’odeur"],
+          commentaire:r["Commentaire"],
+          ip:         (r["Adresse IP"] || "").trim(),
+          dateStr, dateObj,
+          windSpeed:  numVal(r["Vent (km/h)"]),
+          windDir:    numVal(r["Direction vent (°)"])
+        };
+      }).filter(d => !isNaN(d.lat) && !isNaN(d.lon) && d.dateObj instanceof Date && !isNaN(d.dateObj));
+
+      refresh('today');
+    });
+}
+
+// Lance la récupération des données dès que la page est prête
+loadRows();
+
   // Toujours afficher la météo live à l'ouverture de la page
 fetchLiveWindReal();   // obtient le vent live dès l’ouverture
 
