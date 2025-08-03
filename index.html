@@ -143,30 +143,26 @@
     const longitude = document.getElementById('longitude');
     const ip = document.getElementById('ip');
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  overlay.classList.remove('hidden');
+ form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      overlay.classList.remove('hidden');
+      const data = Object.fromEntries(new FormData(form).entries());
 
-  // Récupération propre des données du formulaire
-  const data = Object.fromEntries(new FormData(form).entries());
-
-  try {
-    // Envoi vers ton Apps Script
-    await fetch(
-      'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec',
-      {
-        method: 'POST',
-        body: JSON.stringify(data)   // pas d’en-tête → pas de préfligh​t CORS
+      try {
+        await fetch(
+          'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec',
+          { method: 'POST', body: JSON.stringify(data) }
+        );
+        window.location.href = 'carte.html';
+      } catch {
+        overlay.classList.add('hidden');
+        alert('❌ Erreur lors de l’envoi du signalement.');
       }
-    );
-  } catch (err) {
-    // Pas d'alerte : on log juste pour debug
-    console.warn('Le signalement a quand même été enregistré, détail :', err);
-  } finally {
-    // On va sur la carte dans tous les cas
-    window.location.href = 'carte.html';
-  }
-});
+    });
+  </script>
+</body>
+</html>
+
 
 
 
