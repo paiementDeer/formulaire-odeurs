@@ -151,7 +151,8 @@ function uuidv4() {
   );
 }
 const signalKey = uuidv4();
-data['Clé signalement'] = signalKey;
+data.cleSignalement = signalKey;
+
 
 // 2. Sauve la clé dans localStorage pour retrouver les signalements créés par CE navigateur
 let mine = JSON.parse(localStorage.getItem('mySignals') || '[]');
@@ -178,7 +179,6 @@ console.log(data); // <--- ajoute cette ligne
   </script>
 </body>
 </html>
-
 
 
 
