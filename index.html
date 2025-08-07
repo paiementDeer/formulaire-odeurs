@@ -157,6 +157,8 @@ data['Clé signalement'] = signalKey;
 let mine = JSON.parse(localStorage.getItem('mySignals') || '[]');
 mine.push(signalKey);
 localStorage.setItem('mySignals', JSON.stringify(mine));
+console.log(data); // <--- ajoute cette ligne
+
 
 
   try {
@@ -176,7 +178,6 @@ localStorage.setItem('mySignals', JSON.stringify(mine));
   </script>
 </body>
 </html>
-
 
 
 
