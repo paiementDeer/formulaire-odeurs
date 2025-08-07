@@ -143,6 +143,22 @@
   const data = Object.fromEntries(new FormData(form).entries());
 
   // On tente quand même le POST ; Apps Script l'accepte sans CORS
+
+// 1. Génère une clé unique pour ce signalement
+function uuidv4() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+const signalKey = uuidv4();
+data['Clé signalement'] = signalKey;
+
+// 2. Sauve la clé dans localStorage pour retrouver les signalements créés par CE navigateur
+let mine = JSON.parse(localStorage.getItem('mySignals') || '[]');
+mine.push(signalKey);
+localStorage.setItem('mySignals', JSON.stringify(mine));
+
+
   try {
     await fetch(
       'https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec',
@@ -160,7 +176,6 @@
   </script>
 </body>
 </html>
-
 
 
 
