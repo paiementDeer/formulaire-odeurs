@@ -693,25 +693,19 @@ function askDelete(rowIndex) {
 }
 
 function confirmDelete(rowIndex) {
-  fetch('https://script.google.com/macros/s/AKfycbxdxoRdfxwhcxtbpg7U83K_dxfOVO6WQJS0ZagNGs_HkjjvDVnrsse7CWx7Sx3W0Ddacw/exec', {
+  fetch('https://script.google.com/macros/s/AKfycbwbNtnEo_CKXOCggNgd0irrARwx7vC2z-XlWimbfcK3wobWlOt6rUgkeFLhrI-adcqp3w/exec', {
     method: 'POST',
-    // PAS de header → pas de pre-flight
+    mode  : 'no-cors', // ⬅️ désactive le pre-flight
+    headers: { 'Content-Type': 'text/plain' }, // header "simple"
     body: JSON.stringify({
       action: 'delete',
       row:    rowIndex,
-      ip:     currentIp        // l’IP récupérée au chargement
+      ip:     currentIp
     })
   })
-  .then(r => r.json())
-  .then(res => {
-      if (res.ok) { alert('Signalement supprimé'); location.reload(); }
-      else        { alert('Suppression refusée : ' + res.error); }
-  })
-  .catch(err => {
-      console.error(err);
-      alert('Erreur réseau');
-  });
+  .finally(() => location.reload()); // recharge la page dans tous les cas
 }
+
 
 
 </script>
